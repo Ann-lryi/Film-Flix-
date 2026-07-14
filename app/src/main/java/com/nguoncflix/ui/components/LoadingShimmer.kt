@@ -4,7 +4,9 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -23,7 +25,7 @@ fun ShimmerLoadingRow(title: String) {
             style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
         )
-        
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(horizontal = 16.dp)

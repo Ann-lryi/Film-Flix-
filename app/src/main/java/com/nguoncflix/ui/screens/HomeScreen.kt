@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import com.nguoncflix.ui.components.PremiumMovieCard
 import com.nguoncflix.ui.components.PullToRefreshBox
 import com.nguoncflix.ui.components.ShimmerHeroBanner
 import com.nguoncflix.ui.components.ShimmerMovieCard
+import com.nguoncflix.ui.components.animateScaleOnPress
 import com.nguoncflix.ui.navigation.Screen
 import com.nguoncflix.ui.theme.*
 import com.nguoncflix.viewmodel.HomeViewModel

@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.nguoncflix.data.models.EpisodeData
+import com.nguoncflix.ui.components.animateScaleOnPress
 import com.nguoncflix.ui.navigation.Screen
 import com.nguoncflix.ui.player.PlayerActivity
 import com.nguoncflix.ui.theme.*
