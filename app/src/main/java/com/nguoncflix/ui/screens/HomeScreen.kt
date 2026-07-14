@@ -57,7 +57,6 @@ fun HomeScreen(navController: NavController) {
                 )
             }
 
-            // Sections
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -107,7 +106,6 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
-        // Bottom Navigation
         BottomNavBar(
             currentRoute = "home",
             onNavigate = { route ->
@@ -136,7 +134,6 @@ fun HeroBanner(
             .fillMaxWidth()
             .height(520.dp)
     ) {
-        // Background Image
         AsyncImage(
             model = imageUrl,
             contentDescription = movie?.name,
@@ -144,7 +141,6 @@ fun HeroBanner(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Gradient Overlay (Netflix style)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,7 +156,6 @@ fun HeroBanner(
                 )
         )
 
-        // Netflix-style content
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -211,7 +206,6 @@ fun HeroBanner(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // PLAY Button - Framer Motion inspired
                     Button(
                         onClick = { onPlayClick(it) },
                         colors = ButtonDefaults.buttonColors(
@@ -222,7 +216,6 @@ fun HeroBanner(
                         modifier = Modifier
                             .height(48.dp)
                             .weight(1f)
-                            .animateScaleOnPress()
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -237,7 +230,6 @@ fun HeroBanner(
                         )
                     }
 
-                    // Info Button
                     OutlinedButton(
                         onClick = { onInfoClick(it) },
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -248,7 +240,6 @@ fun HeroBanner(
                         modifier = Modifier
                             .height(48.dp)
                             .weight(1f)
-                            .animateScaleOnPress()
                     ) {
                         Text(
                             text = "Thông tin",
@@ -315,9 +306,6 @@ fun AnimatedMovieCard(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-            }
-            .clickable {
-                isPressed = true
             },
         shape = RoundedCornerShape(4.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -330,7 +318,6 @@ fun AnimatedMovieCard(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Bottom gradient
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -360,7 +347,7 @@ fun AnimatedMovieCard(
     }
 }
 
-// Framer Motion inspired: Press animation (whileTap)
+// Simple press animation (safe version - compatible with current Compose)
 @Composable
 fun Modifier.animateScaleOnPress(): Modifier {
     var isPressed by remember { mutableStateOf(false) }
@@ -379,53 +366,7 @@ fun Modifier.animateScaleOnPress(): Modifier {
             scaleX = scale
             scaleY = scale
         }
-        .clickable(
-            onClick = { },
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null
-        ) {
+        .clickable {
             isPressed = true
         }
 }
-
-// Bottom navigation bar
-@Composable
-fun BottomNavBar(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    NavigationBar(
-        modifier = modifier,
-        containerColor = NetflixDarkGray,
-        tonalElevation = 0.dp
-    ) {
-        val items = listOf(
-            Triple("home", "Trang chủ", Icons.Default.Home),
-            Triple("search", "Tìm kiếm", Icons.Default.Search),
-            Triple("my_list", "Danh sách", Icons.Default.List),
-            Triple("profile", "Hồ sơ", Icons.Default.Person)
-        )
-
-        items.forEach { (route, label, icon) ->
-            NavigationBarItem(
-                selected = currentRoute == route,
-                onClick = { onNavigate(route) },
-                icon = { Icon(imageVector = icon, contentDescription = label) },
-                label = { Text(label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = NetflixRed,
-                    selectedTextColor = NetflixWhite,
-                    unselectedIconColor = NetflixTextSecondary,
-                    unselectedTextColor = NetflixTextSecondary,
-                    indicatorColor = Color.Transparent
-                )
-            )
-        }
-    }
-}
-
-// Helper for icons (since icons import is incomplete in some contexts)
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.foundation.interaction.MutableInteractionSource

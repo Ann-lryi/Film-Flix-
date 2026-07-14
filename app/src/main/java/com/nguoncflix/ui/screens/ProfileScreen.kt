@@ -36,10 +36,10 @@ fun ProfileScreen(navController: NavController) {
         )
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
         BottomNavBar(
             currentRoute = "profile",
-            onNavigate = { route ->
+            onNavigate = { route: String ->
                 when (route) {
                     "home" -> navController.navigate(Screen.Home.route)
                     "search" -> navController.navigate(Screen.Search.route)

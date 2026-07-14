@@ -85,7 +85,7 @@ fun SearchScreen(navController: NavController) {
     Box(modifier = Modifier.fillMaxSize()) {
         BottomNavBar(
             currentRoute = "search",
-            onNavigate = { route ->
+            onNavigate = { route: String ->
                 when (route) {
                     "home" -> navController.navigate(Screen.Home.route)
                     "search" -> {}
