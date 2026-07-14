@@ -46,50 +46,108 @@ class HomeViewModel : ViewModel() {
             )
 
             try {
+                // Parallel fetch with robust handling
                 val newDef = async {
-                    val r = RetrofitClient.apiService.getNewMovies(1)
-                    r.items ?: r.data?.items ?: emptyList()
+                    try {
+                        val response = RetrofitClient.apiService.getNewMovies(1)
+                        // /danh-sach/phim-moi-cap-nhat uses direct items
+                        response.items ?: emptyList()
+                    } catch (e: Exception) { emptyList() }
                 }
+
                 val seriesDef = async {
-                    val r = RetrofitClient.apiService.getMoviesByType("phim-bo", 1, 12)
-                    r.items ?: r.data?.items ?: emptyList()
+                    try {
+                        val response = RetrofitClient.apiService.getMoviesByType("phim-bo", 1, 16)
+                        // /v1/api/... uses data.items
+                        response.data?.items ?: response.items ?: emptyList()
+                    } catch (e: Exception) { emptyList() }
                 }
+
                 val singleDef = async {
-                    val r = RetrofitClient.apiService.getMoviesByType("phim-le", 1, 12)
-                    r.items ?: r.data?.items ?: emptyList()
+                    try {
+                        val response = RetrofitClient.apiService.getMoviesByType("phim-le", 1, 16)
+                        response.data?.items ?: response.items ?: emptyList()
+                    } catch (e: Exception) { emptyList() }
                 }
+
                 val tvDef = async {
-                    val r = RetrofitClient.apiService.getMoviesByType("tv-shows", 1, 12)
-                    r.items ?: r.data?.items ?: emptyList()
+                    try {
+                        val response = RetrofitClient.apiService.getMoviesByType("tv-shows", 1, 14)
+                        response.data?.items ?: response.items ?: emptyList()
+                    } catch (e: Exception) { emptyList() }
                 }
 
-                val (news, series, singles, tvs) = awaitAll(newDef, seriesDef, singleDef, tvDef)
+                val (newsRaw, seriesRaw, singlesRaw, tvsRaw) = awaitAll(newDef, seriesDef, singleDef, tvDef)
 
-                // Industrial-grade data guarantee
-                val finalNew = news.take(12)
-                val finalSeries = if (series.isNotEmpty()) series.take(12) else finalNew.filter { it.episodeCurrent?.contains("Tập") == true }.take(12)
-                val finalSingles = if (singles.isNotEmpty()) singles.take(12) else finalNew.filter { it.episodeCurrent?.contains("Full") == true || it.type == "single" }.take(12)
-                val finalTv = if (tvs.isNotEmpty()) tvs.take(12) else finalNew.take(12)
+                // === INDUSTRIAL-GRADE DEFENSIVE FALLBACKS ===
+                val finalNew = newsRaw.take(14).filter { it.name.isNotBlank() }
 
-                val featured = finalNew.firstOrNull() 
-                    ?: finalSeries.firstOrNull() 
-                    ?: finalSingles.firstOrNull() 
-                    ?: finalTv.firstOrNull()
+                // Series (Phim Bộ)
+                val finalSeries = when {
+                    seriesRaw.isNotEmpty() -> seriesRaw.take(14).filter { it.name.isNotBlank() }
+                    else -> finalNew.filter { 
+                        it.episodeCurrent?.contains("Tập", ignoreCase = true) == true || 
+                        it.type == "series" || 
+                        (it.episodeCurrent?.contains("/") == true && !it.episodeCurrent.contains("Full"))
+                    }.take(14).ifEmpty { finalNew.take(8) }
+                }
+
+                // Singles (Phim Lẻ)
+                val finalSingles = when {
+                    singlesRaw.isNotEmpty() -> singlesRaw.take(14).filter { it.name.isNotBlank() }
+                    else -> finalNew.filter { 
+                        it.episodeCurrent?.contains("Full", ignoreCase = true) == true || 
+                        it.type == "single" || 
+                        it.episodeCurrent?.contains("phút") == true
+                    }.take(14).ifEmpty { finalNew.take(8) }
+                }
+
+                // TV Shows / Anime (more aggressive fallback)
+                val finalTv = when {
+                    tvsRaw.isNotEmpty() -> tvsRaw.take(14).filter { it.name.isNotBlank() }
+                    else -> finalNew.filter { 
+                        it.episodeCurrent?.contains("Tập", ignoreCase = true) == true ||
+                        it.type?.contains("tv", ignoreCase = true) == true ||
+                        it.episodeCurrent?.contains("phút") == false
+                    }.take(14).ifEmpty { finalNew.take(10) }
+                }
+
+                // Always guarantee at least some content
+                val guaranteedSeries = if (finalSeries.isEmpty()) finalNew.take(8) else finalSeries
+                val guaranteedSingles = if (finalSingles.isEmpty()) finalNew.take(8) else finalSingles
+                val guaranteedTv = if (finalTv.isEmpty()) finalNew.take(8) else finalTv
+
+                val featured = finalNew.firstOrNull()
+                    ?: guaranteedSeries.firstOrNull()
+                    ?: guaranteedSingles.firstOrNull()
+                    ?: guaranteedTv.firstOrNull()
 
                 _uiState.value = HomeUiState(
                     featuredMovie = featured,
                     newMovies = finalNew,
-                    seriesMovies = finalSeries,
-                    singleMovies = finalSingles,
-                    tvShows = finalTv,
+                    seriesMovies = guaranteedSeries,
+                    singleMovies = guaranteedSingles,
+                    tvShows = guaranteedTv,
                     isLoading = false,
                     isRefreshing = false
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
+                // Ultimate fallback: use newMovies for everything if all else fails
+                val currentNew = _uiState.value.newMovies.ifEmpty { 
+                    try { 
+                        RetrofitClient.apiService.getNewMovies(1).items?.take(12) ?: emptyList() 
+                    } catch (_: Exception) { emptyList() } 
+                }
+
+                _uiState.value = HomeUiState(
+                    featuredMovie = currentNew.firstOrNull(),
+                    newMovies = currentNew,
+                    seriesMovies = currentNew.take(8),
+                    singleMovies = currentNew.take(8),
+                    tvShows = currentNew.take(8),
                     isLoading = false,
                     isRefreshing = false,
-                    error = "Không thể tải dữ liệu. Kéo xuống để thử lại."
+                    error = if (currentNew.isEmpty()) "Không thể tải dữ liệu. Kéo xuống để thử lại." else null
                 )
             }
         }

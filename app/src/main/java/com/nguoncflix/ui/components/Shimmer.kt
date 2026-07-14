@@ -20,23 +20,23 @@ import com.nguoncflix.ui.theme.NetflixGray
 fun ShimmerBox(
     modifier: Modifier = Modifier,
     height: Dp = 180.dp,
-    shape: RoundedCornerShape = RoundedCornerShape(4.dp)
+    shape: RoundedCornerShape = RoundedCornerShape(14.dp)
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val offset by infiniteTransition.animateFloat(
         initialValue = -300f,
         targetValue = 300f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "shimmer_offset"
     )
 
     val shimmerColors = listOf(
-        NetflixGray,
-        NetflixGray.copy(alpha = 0.3f),
-        NetflixGray
+        NetflixGray.copy(alpha = 0.6f),
+        NetflixGray.copy(alpha = 0.25f),
+        NetflixGray.copy(alpha = 0.6f)
     )
 
     Box(
@@ -46,8 +46,8 @@ fun ShimmerBox(
             .background(
                 brush = Brush.linearGradient(
                     colors = shimmerColors,
-                    start = Offset(offset - 100f, 0f),
-                    end = Offset(offset + 100f, 0f)
+                    start = Offset(offset - 120f, 0f),
+                    end = Offset(offset + 120f, 0f)
                 )
             )
     )
@@ -55,11 +55,12 @@ fun ShimmerBox(
 
 @Composable
 fun ShimmerMovieCard(modifier: Modifier = Modifier) {
+    // Matches new PremiumMovieCard size
     ShimmerBox(
         modifier = modifier
-            .width(130.dp)
-            .height(190.dp),
-        shape = RoundedCornerShape(4.dp)
+            .width(148.dp)
+            .height(228.dp),
+        shape = RoundedCornerShape(14.dp)
     )
 }
 
@@ -76,5 +77,41 @@ fun ShimmerHeroBanner() {
             height = 520.dp,
             shape = RoundedCornerShape(0.dp)
         )
+        
+        // Fake hero text shimmer
+        Column(
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.BottomStart)
+                .padding(24.dp)
+        ) {
+            ShimmerBox(
+                modifier = Modifier
+                    .width(220.dp)
+                    .height(32.dp),
+                shape = RoundedCornerShape(6.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+            ShimmerBox(
+                modifier = Modifier
+                    .width(140.dp)
+                    .height(20.dp),
+                shape = RoundedCornerShape(4.dp)
+            )
+            Spacer(Modifier.height(28.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                ShimmerBox(
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(44.dp),
+                    shape = RoundedCornerShape(10.dp)
+                )
+            }
+        }
     }
 }
