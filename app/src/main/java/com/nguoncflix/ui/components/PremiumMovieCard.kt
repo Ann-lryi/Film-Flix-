@@ -27,6 +27,9 @@ import com.nguoncflix.data.models.Movie
 import com.nguoncflix.ui.theme.NetflixRed
 import com.nguoncflix.ui.theme.NetflixWhite
 import com.nguoncflix.ui.theme.NetflixTextSecondary
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Premium cinematic movie card
@@ -39,6 +42,7 @@ fun PremiumMovieCard(
     modifier: Modifier = Modifier
 ) {
     var isPressed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Advanced spring press animation (Framer Motion style)
     val scale by animateFloatAsState(
@@ -78,9 +82,9 @@ fun PremiumMovieCard(
             ) {
                 isPressed = true
                 onClick()
-                // Reset press state
-                kotlinx.coroutines.GlobalScope.launch {
-                    kotlinx.coroutines.delay(180)
+                // Reset press state safely
+                scope.launch {
+                    delay(180)
                     isPressed = false
                 }
             },
