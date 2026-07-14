@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.NguoncFlix" parent="Theme.Material3.Dark.NoActionBar">
+    <!-- 
+      Netflix-style Dark Theme for Material 3
+      Correct way: Use Theme.Material3.Dark + disable action bar via items
+      (Theme.Material3.Dark.NoActionBar does NOT exist as a built-in style)
+    -->
+    <style name="Theme.NguoncFlix" parent="Theme.Material3.Dark">
+        <!-- Remove ActionBar / AppBar -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+
+        <!-- Netflix dark background -->
         <item name="android:windowBackground">@color/netflix_dark</item>
         <item name="android:statusBarColor">@color/netflix_dark</item>
         <item name="android:navigationBarColor">@color/netflix_dark</item>
+
+        <!-- Netflix red accent -->
+        <item name="colorPrimary">@color/netflix_red</item>
     </style>
 
-    <style name="Theme.NguoncFlix.Fullscreen" parent="Theme.Material3.Dark.NoActionBar">
+    <!-- Fullscreen player (no system bars) -->
+    <style name="Theme.NguoncFlix.Fullscreen" parent="Theme.Material3.Dark">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowBackground">@android:color/black</item>
     </style>

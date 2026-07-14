@@ -15,11 +15,14 @@ gen/
 out/
 build/
 
-# Gradle files
+# Gradle
 .gradle/
-gradlew
-gradlew.bat
-gradle-wrapper.jar
+build/
+
+# IMPORTANT: Gradle Wrapper files MUST be committed for CI/CD
+!gradle/wrapper/gradle-wrapper.jar
+!gradlew
+!gradlew.bat
 
 # Local configuration file (sdk path, etc)
 local.properties
