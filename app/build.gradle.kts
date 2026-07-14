@@ -59,11 +59,6 @@ android {
             useLegacyPackaging = true
         }
     }
-
-    // Suppress strip debug symbols warnings for androidx.graphics.path
-    ndk {
-        debugSymbolLevel = "NONE"
-    }
 }
 
 dependencies {
@@ -86,7 +81,7 @@ dependencies {
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
-    // Google Material (important for Material3 theme resolution)
+    // Google Material
     implementation("com.google.android.material:material:1.12.0")
 
     // Network
@@ -95,13 +90,14 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-    // Image - Coil with better caching & performance
+    // Coil
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil:2.7.0")
+
     // Pull to refresh
     implementation("androidx.compose.material:material:1.7.4")
 
-    // ExoPlayer / Media3 (full support for m3u8/HLS)
+    // ExoPlayer / Media3 (full HLS support)
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
