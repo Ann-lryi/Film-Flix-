@@ -14,6 +14,34 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # === CRITICAL FIX FOR "chmod: cannot access 'gradlew'" ===
+      # This is the most common reason for this exact error.
+      - name: Verify & Prepare Gradle Wrapper
+        run: |
+          echo "🔍 Checking Gradle wrapper files..."
+          
+          if [ ! -f "./gradlew" ]; then
+            echo "❌ FATAL: gradlew not found after checkout!"
+            echo "The Gradle wrapper files must be committed to the repo."
+            echo ""
+            echo "FIX (run these commands locally):"
+            echo "  git add -f gradlew gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties"
+            echo "  git commit -m \"fix: include gradle wrapper for CI\""
+            echo "  git push"
+            echo ""
+            exit 1
+          fi
+          
+          echo "✅ gradlew exists"
+          
+          # Always make it executable (safe even if already executable)
+          chmod +x ./gradlew
+          echo "✅ chmod +x gradlew completed"
+          
+          ls -lh ./gradlew gradle/wrapper/gradle-wrapper.jar
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -23,22 +51,18 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+          gradle-version: '8.9'
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nguonc-flix-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
