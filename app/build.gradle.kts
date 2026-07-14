@@ -55,6 +55,14 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    // Suppress strip debug symbols warnings for androidx.graphics.path
+    ndk {
+        debugSymbolLevel = "NONE"
     }
 }
 

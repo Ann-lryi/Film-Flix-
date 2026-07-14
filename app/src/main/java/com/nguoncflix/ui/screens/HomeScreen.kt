@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -22,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -33,6 +33,7 @@ import com.nguoncflix.ui.components.ShimmerMovieCard
 import com.nguoncflix.ui.navigation.Screen
 import com.nguoncflix.ui.theme.*
 import com.nguoncflix.viewmodel.HomeViewModel
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -143,7 +144,8 @@ private fun ElegantSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, bottom = 12.dp),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -220,7 +222,8 @@ private fun CinematicHeroBanner(
                 text = movie.name,
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Black,
-                    letterSpacing = (-1.5).sp
+                    letterSpacing = (-1.5).sp,
+                    fontSize = 32.sp
                 ),
                 color = NetflixWhite,
                 maxLines = 2,
