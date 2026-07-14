@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NguoncFlix" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/netflix_dark</item>
+        <item name="android:statusBarColor">@color/netflix_dark</item>
+        <item name="android:navigationBarColor">@color/netflix_dark</item>
+    </style>
+
+    <style name="Theme.NguoncFlix.Fullscreen" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+</resources>
