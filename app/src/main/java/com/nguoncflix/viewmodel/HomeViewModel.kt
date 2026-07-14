@@ -36,58 +36,60 @@ class HomeViewModel : ViewModel() {
 
     private fun fetchHomeData(forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            if (!forceRefresh && _uiState.value.newMovies.isNotEmpty() && !_uiState.value.isLoading) {
-                // Skip if already loaded
-                return@launch
-            }
+            if (!forceRefresh && _uiState.value.newMovies.isNotEmpty() && !_uiState.value.isLoading) return@launch
 
-            val isRefreshing = _uiState.value.newMovies.isNotEmpty()
+            val isRefresh = _uiState.value.newMovies.isNotEmpty()
             _uiState.value = _uiState.value.copy(
-                isLoading = !isRefreshing,
-                isRefreshing = isRefreshing,
+                isLoading = !isRefresh,
+                isRefreshing = isRefresh,
                 error = null
             )
 
             try {
-                // Parallel API calls - this is the BIG performance win
-                val newMoviesDeferred = async { 
-                    RetrofitClient.apiService.getNewMovies(page = 1).items ?: emptyList() 
+                val newDef = async {
+                    val r = RetrofitClient.apiService.getNewMovies(1)
+                    r.items ?: r.data?.items ?: emptyList()
                 }
-                val seriesDeferred = async { 
-                    RetrofitClient.apiService.getMoviesByType("phim-bo", page = 1, limit = 12)
-                        .items ?: emptyList() 
+                val seriesDef = async {
+                    val r = RetrofitClient.apiService.getMoviesByType("phim-bo", 1, 12)
+                    r.items ?: r.data?.items ?: emptyList()
                 }
-                val singlesDeferred = async { 
-                    RetrofitClient.apiService.getMoviesByType("phim-le", page = 1, limit = 12)
-                        .items ?: emptyList() 
+                val singleDef = async {
+                    val r = RetrofitClient.apiService.getMoviesByType("phim-le", 1, 12)
+                    r.items ?: r.data?.items ?: emptyList()
                 }
-                val tvDeferred = async { 
-                    RetrofitClient.apiService.getMoviesByType("tv-shows", page = 1, limit = 12)
-                        .items ?: emptyList() 
+                val tvDef = async {
+                    val r = RetrofitClient.apiService.getMoviesByType("tv-shows", 1, 12)
+                    r.items ?: r.data?.items ?: emptyList()
                 }
 
-                // Await all in parallel
-                val (newMovies, series, singles, tvs) = awaitAll(
-                    newMoviesDeferred,
-                    seriesDeferred,
-                    singlesDeferred,
-                    tvDeferred
-                )
+                val (news, series, singles, tvs) = awaitAll(newDef, seriesDef, singleDef, tvDef)
 
-                val featured = newMovies.firstOrNull()
+                // Industrial-grade data guarantee
+                val finalNew = news.take(12)
+                val finalSeries = if (series.isNotEmpty()) series.take(12) else finalNew.filter { it.episodeCurrent?.contains("Tập") == true }.take(12)
+                val finalSingles = if (singles.isNotEmpty()) singles.take(12) else finalNew.filter { it.episodeCurrent?.contains("Full") == true || it.type == "single" }.take(12)
+                val finalTv = if (tvs.isNotEmpty()) tvs.take(12) else finalNew.take(12)
+
+                val featured = finalNew.firstOrNull() 
+                    ?: finalSeries.firstOrNull() 
+                    ?: finalSingles.firstOrNull() 
+                    ?: finalTv.firstOrNull()
 
                 _uiState.value = HomeUiState(
                     featuredMovie = featured,
-                    newMovies = newMovies.take(12),
-                    seriesMovies = series,
-                    singleMovies = singles,
-                    tvShows = tvs,
-                    isLoading = false
+                    newMovies = finalNew,
+                    seriesMovies = finalSeries,
+                    singleMovies = finalSingles,
+                    tvShows = finalTv,
+                    isLoading = false,
+                    isRefreshing = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Không thể tải dữ liệu. Vui lòng thử lại."
+                    isRefreshing = false,
+                    error = "Không thể tải dữ liệu. Kéo xuống để thử lại."
                 )
             }
         }
