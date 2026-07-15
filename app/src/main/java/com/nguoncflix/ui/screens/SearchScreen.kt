@@ -44,7 +44,10 @@ fun SearchScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(NetflixDark)
-            .padding(top = 52.dp)   // Proper status bar padding
+            // Use PaddingValues explicitly — this directly matches the first overload
+            // and is the ONLY reliable way to avoid the
+            // "None of the following candidates is applicable" padding error
+            .padding(PaddingValues(top = 52.dp))
     ) {
         // Modern prominent header
         Column(
