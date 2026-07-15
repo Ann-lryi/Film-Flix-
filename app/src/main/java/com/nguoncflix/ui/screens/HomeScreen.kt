@@ -52,6 +52,7 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(NetflixDark)
+                .padding(top = 48.dp)   // Status bar breathing room
         ) {
             when {
                 uiState.isLoading && uiState.newMovies.isEmpty() -> LoadingHomeContent()
@@ -216,7 +217,7 @@ private fun CinematicHeroBanner(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(560.dp)
+            .height(88.dp)   // Compact hero — does NOT dominate the screen
     ) {
         // Background image
         AsyncImage(
@@ -248,17 +249,17 @@ private fun CinematicHeroBanner(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(horizontal = 22.dp, vertical = 48.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .fillMaxWidth()
         ) {
-            // Title - bold cinematic
+            // Title - compact cinematic (fits small hero)
             Text(
                 text = movie.name,
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Black,
-                    fontSize = 34.sp,
-                    letterSpacing = (-1.2).sp,
-                    lineHeight = 38.sp
+                    fontSize = 22.sp,
+                    letterSpacing = (-0.6).sp,
+                    lineHeight = 25.sp
                 ),
                 color = NetflixWhite,
                 maxLines = 2,

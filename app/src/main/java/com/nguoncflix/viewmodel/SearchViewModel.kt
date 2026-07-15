@@ -27,16 +27,39 @@ class SearchViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.value = SearchUiState(isLoading = true)
+
             try {
                 val response = RetrofitClient.apiService.searchMovies(keyword = query, limit = 30)
                 val items = response.items ?: response.data?.items ?: emptyList()
-                _uiState.value = SearchUiState(movies = items, isLoading = false)
-            } catch (e: Exception) {
+
+                // Defensive fallback + filtering
+                val filtered = items
+                    .filter { it.name.isNotBlank() }
+                    .take(30)
+
                 _uiState.value = SearchUiState(
+                    movies = filtered,
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                // Fallback: try to use new movies as backup
+                val fallback = try {
+                    val newResp = RetrofitClient.apiService.getNewMovies(1)
+                    (newResp.items ?: emptyList())
+                        .filter { it.name.contains(query, ignoreCase = true) }
+                        .take(12)
+                } catch (_: Exception) { emptyList() }
+
+                _uiState.value = SearchUiState(
+                    movies = fallback,
                     isLoading = false,
-                    error = e.message
+                    error = if (fallback.isEmpty()) "Không thể tìm kiếm lúc này" else null
                 )
             }
         }
+    }
+
+    fun clearSearch() {
+        _uiState.value = SearchUiState()
     }
 }
