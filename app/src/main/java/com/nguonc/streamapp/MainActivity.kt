@@ -69,10 +69,15 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
+                    val boxModifier = if (isPlayerScreen) {
+                        Modifier.fillMaxSize()
+                    } else {
+                        Modifier
                             .fillMaxSize()
-                            .padding(if (isPlayerScreen) Modifier else Modifier.padding(bottom = innerPadding.calculateBottomPadding()))
+                            .padding(bottom = innerPadding.calculateBottomPadding())
+                    }
+                    Box(
+                        modifier = boxModifier
                     ) {
                         NavHost(
                             navController = navController,
