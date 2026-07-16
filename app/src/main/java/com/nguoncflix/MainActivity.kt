@@ -5,11 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.nguoncflix.ui.navigation.AppNavigation
 import com.nguoncflix.ui.theme.NguoncFlixTheme
@@ -18,7 +16,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Enable modern edge-to-edge + proper status bar handling
+        // Modern edge-to-edge: lets our app draw under status & navigation bars.
+        // The content screens handle their own insets with WindowInsets APIs.
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
 

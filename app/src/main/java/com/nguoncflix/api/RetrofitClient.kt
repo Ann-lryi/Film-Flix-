@@ -1,26 +1,45 @@
 package com.nguoncflix.api
 
-import okhttp3.Cache
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private const val BASE_URL = "https://phimapi.com/"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BASIC   // Changed to BASIC for production feel
+        // BASIC is enough for production; BODY adds significant overhead
+        level = HttpLoggingInterceptor.Level.BASIC
     }
 
-    // Simple in-memory + disk cache for images + API responses
+    /**
+     * Inject a real User-Agent so the API doesn't reject the request as a bot.
+     * Some phimapi.com edge nodes block default OkHttp UA.
+     */
+    private val userAgentInterceptor = Interceptor { chain ->
+        val original = chain.request()
+        val newRequest = original.newBuilder()
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
+                "(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+            )
+            .header("Accept", "application/json")
+            .build()
+        chain.proceed(newRequest)
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(userAgentInterceptor)
         .addInterceptor(loggingInterceptor)
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(25, TimeUnit.SECONDS)
         .writeTimeout(15, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build()
 
     val apiService: ApiService by lazy {

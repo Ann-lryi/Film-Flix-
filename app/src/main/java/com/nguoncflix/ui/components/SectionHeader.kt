@@ -1,6 +1,7 @@
 package com.nguoncflix.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -11,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nguoncflix.ui.theme.NetflixRed
+import com.nguoncflix.ui.theme.NetflixTextSecondary
 import com.nguoncflix.ui.theme.NetflixWhite
 
 @Composable
@@ -21,7 +23,7 @@ fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Accent bar (Tencent / iQIYI style)
@@ -39,7 +41,7 @@ fun SectionHeader(
             color = NetflixWhite,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 20.sp,
+                fontSize = 19.sp,
                 letterSpacing = (-0.3).sp
             )
         )
@@ -48,12 +50,13 @@ fun SectionHeader(
 
         Text(
             text = "TẤT CẢ",
-            color = NetflixRed,
+            color = NetflixTextSecondary,
             style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp
+                fontSize = 12.sp
             ),
             modifier = Modifier
+                .clickable { onSeeAllClick() }
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }

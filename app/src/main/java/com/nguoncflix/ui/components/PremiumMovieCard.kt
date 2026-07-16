@@ -32,7 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Modern premium movie card — inspired by iQIYI, Tencent Video, Netflix
+ * Premium movie card inspired by iQIYI, Tencent Video, Netflix.
  */
 @Composable
 fun PremiumMovieCard(
@@ -44,34 +44,35 @@ fun PremiumMovieCard(
     val scope = rememberCoroutineScope()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = 0.72f, stiffness = 420f),
-        label = "scale"
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 420f),
+        label = "card_scale"
     )
 
     Card(
         modifier = modifier
-            .width(134.dp)
-            .height(198.dp)
+            .width(140.dp)
+            .height(208.dp)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
             .shadow(
-                elevation = if (isPressed) 6.dp else 14.dp,
-                shape = RoundedCornerShape(12.dp),
-                ambientColor = Color.Black.copy(0.4f)
+                elevation = if (isPressed) 6.dp else 12.dp,
+                shape = RoundedCornerShape(14.dp),
+                ambientColor = Color.Black.copy(0.45f),
+                spotColor = Color.Black.copy(0.55f)
             )
             .clickable {
                 isPressed = true
                 onClick()
                 scope.launch {
-                    delay(120)
+                    delay(130)
                     isPressed = false
                 }
             },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF181818))
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF161616))
     ) {
         Box(Modifier.fillMaxSize()) {
             AsyncImage(
@@ -81,7 +82,7 @@ fun PremiumMovieCard(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Strong cinematic gradient
+            // Cinematic gradient overlay (strong at bottom for text)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -89,34 +90,57 @@ fun PremiumMovieCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.25f),
-                                Color.Black.copy(alpha = 0.88f)
+                                Color.Black.copy(alpha = 0.15f),
+                                Color.Black.copy(alpha = 0.55f),
+                                Color.Black.copy(alpha = 0.92f)
                             ),
-                            startY = 80f
+                            startY = 60f
                         )
                     )
             )
 
-            // Top badges
+            // Top-right quality badge
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                movie.quality?.let {
+                movie.quality?.takeIf { it.isNotBlank() }?.let { q ->
                     Box(
                         modifier = Modifier
                             .background(NetflixRed, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            it,
+                            q,
                             color = NetflixWhite,
                             fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.3.sp
                         )
                     }
+                }
+            }
+
+            // Top-left series badge
+            if (movie.episodeCurrent?.contains("Tập", ignoreCase = true) == true ||
+                movie.type == "series"
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                        .background(Color.Black.copy(0.6f), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        "SERIES",
+                        color = NetflixWhite,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp
+                    )
                 }
             }
 
@@ -124,7 +148,7 @@ fun PremiumMovieCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(9.dp)
+                    .padding(10.dp)
             ) {
                 Text(
                     text = movie.name,
@@ -142,36 +166,30 @@ fun PremiumMovieCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     movie.year?.let {
-                        Text("$it", color = NetflixTextSecondary, fontSize = 10.sp)
+                        Text(
+                            "$it",
+                            color = NetflixTextSecondary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (movie.year != null && !movie.episodeCurrent.isNullOrBlank()) {
+                        Text(
+                            "  •  ",
+                            color = NetflixTextSecondary.copy(0.5f),
+                            fontSize = 9.sp
+                        )
                     }
                     movie.episodeCurrent?.let { ep ->
-                        if (movie.year != null) {
-                            Text("  •  ", color = NetflixTextSecondary.copy(0.6f), fontSize = 9.sp)
-                        }
                         Text(
                             ep,
                             color = NetflixTextSecondary,
-                            fontSize = 10.sp
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                }
-            }
-
-            // Series badge
-            if (movie.episodeCurrent?.contains("Tập", ignoreCase = true) == true) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(7.dp)
-                        .background(Color.Black.copy(0.6f), RoundedCornerShape(3.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                ) {
-                    Text(
-                        "SERIES",
-                        color = NetflixWhite,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold
-                    )
                 }
             }
         }

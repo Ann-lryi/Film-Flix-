@@ -55,11 +55,11 @@ fun ShimmerBox(
 
 @Composable
 fun ShimmerMovieCard(modifier: Modifier = Modifier) {
-    // Matches new PremiumMovieCard size
+    // Matches PremiumMovieCard size
     ShimmerBox(
         modifier = modifier
-            .width(148.dp)
-            .height(228.dp),
+            .width(140.dp)
+            .height(208.dp),
         shape = RoundedCornerShape(14.dp)
     )
 }

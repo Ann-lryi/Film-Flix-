@@ -17,11 +17,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +33,7 @@ import com.nguoncflix.data.models.Movie
 import com.nguoncflix.ui.navigation.Screen
 import com.nguoncflix.ui.theme.*
 import com.nguoncflix.viewmodel.SearchViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun SearchScreen(navController: NavController) {
@@ -40,149 +43,201 @@ fun SearchScreen(navController: NavController) {
     var query by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    Column(
+    // Debounce typing -> reduce API spam & race conditions
+    LaunchedEffect(query) {
+        if (query.isNotBlank()) {
+            delay(350)
+            viewModel.search(query)
+        } else {
+            viewModel.clearSearch()
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NetflixDark)
-            // Use PaddingValues explicitly — this directly matches the first overload
-            // and is the ONLY reliable way to avoid the
-            // "None of the following candidates is applicable" padding error
-            .padding(PaddingValues(top = 52.dp))
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(NetflixDark, NetflixDarkGray, NetflixDark)
+                )
+            )
     ) {
-        // Modern prominent header
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, bottom = 8.dp)
+                .fillMaxSize()
+                .padding(top = 48.dp)
         ) {
-            Text(
-                text = "Tìm kiếm",
-                color = NetflixWhite,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // VERY LARGE + PROMINENT search bar (modern iQIYI / Netflix style)
-            Box(
+            // Header & search bar
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(62.dp)
-                    .clip(RoundedCornerShape(31.dp))
-                    .background(NetflixDarkGray)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Row(
+                Text(
+                    text = "Tìm kiếm",
+                    color = NetflixWhite,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.5).sp
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Prominent search bar with subtle border
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .height(58.dp)
+                        .clip(RoundedCornerShape(29.dp))
+                        .background(NetflixDarkGray.copy(alpha = 0.8f))
                 ) {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = NetflixTextSecondary,
+                    Row(
                         modifier = Modifier
-                            .padding(start = 18.dp)
-                            .size(20.dp)
-                    )
-
-                    TextField(
-                        value = query,
-                        onValueChange = { 
-                            query = it
-                            viewModel.search(it)
-                        },
-                        placeholder = {
-                            Text(
-                                "Tìm phim, diễn viên, thể loại...",
-                                color = NetflixTextSecondary.copy(0.65f),
-                                fontSize = 15.sp
-                            )
-                        },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedTextColor = NetflixWhite,
-                            unfocusedTextColor = NetflixWhite,
-                            cursorColor = NetflixRed,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        keyboardActions = KeyboardActions(
-                            onSearch = { keyboardController?.hide() }
-                        )
-                    )
-
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = {
-                            query = ""
-                            viewModel.clearSearch()
-                        }) {
-                            Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "Xóa",
-                                tint = NetflixTextSecondary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Main content
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 72.dp)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            color = NetflixRed,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                }
-
-                query.isNotBlank() && uiState.movies.isEmpty() -> {
-                    EmptySearchState(query)
-                }
-
-                uiState.movies.isNotEmpty() -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(uiState.movies) { movie ->
-                            ModernSearchResultRow(movie) {
-                                navController.navigate(Screen.MovieDetail.createRoute(movie.slug))
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = NetflixTextSecondary,
+                            modifier = Modifier
+                                .padding(start = 18.dp)
+                                .size(20.dp)
+                        )
+
+                        TextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = {
+                                Text(
+                                    "Tìm phim, diễn viên, thể loại...",
+                                    color = NetflixTextSecondary.copy(0.65f),
+                                    fontSize = 15.sp
+                                )
+                            },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedTextColor = NetflixWhite,
+                                unfocusedTextColor = NetflixWhite,
+                                cursorColor = NetflixRed,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = { keyboardController?.hide() }
+                            )
+                        )
+
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = {
+                                query = ""
+                                viewModel.clearSearch()
+                            }) {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "Xóa",
+                                    tint = NetflixTextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
                 }
+            }
 
-                else -> {
-                    SearchDefaultContent(onSuggestionClick = { term ->
-                        query = term
-                        viewModel.search(term)
-                    })
+            // Main content
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 96.dp)
+            ) {
+                when {
+                    // Show "no input yet" state
+                    query.isBlank() -> {
+                        SearchDefaultContent(onSuggestionClick = { term ->
+                            query = term
+                        })
+                    }
+
+                    // Loading
+                    uiState.isLoading -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(
+                                    color = NetflixRed,
+                                    strokeWidth = 3.dp,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    "Đang tìm \"$query\"...",
+                                    color = NetflixTextSecondary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Error
+                    uiState.error != null -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("⚠️", fontSize = 40.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    uiState.error ?: "",
+                                    color = NetflixTextSecondary,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    // Empty result
+                    uiState.movies.isEmpty() -> {
+                        EmptySearchState(query)
+                    }
+
+                    // Results
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                horizontal = 16.dp,
+                                vertical = 8.dp
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            item {
+                                Text(
+                                    "${uiState.movies.size} kết quả",
+                                    color = NetflixTextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            items(uiState.movies, key = { it.id }) { movie ->
+                                ModernSearchResultRow(movie) {
+                                    navController.navigate(
+                                        Screen.MovieDetail.createRoute(movie.slug)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-    }
 
-    // Bottom nav
-    Box(Modifier.fillMaxSize()) {
         BottomNavBar(
             currentRoute = "search",
             onNavigate = { route ->
@@ -204,7 +259,7 @@ private fun ModernSearchResultRow(movie: Movie, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(NetflixDarkGray)
+            .background(NetflixDarkGray.copy(alpha = 0.7f))
             .clickable(onClick = onClick)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -240,7 +295,7 @@ private fun ModernSearchResultRow(movie: Movie, onClick: () -> Unit) {
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 movie.year?.let {
@@ -286,7 +341,7 @@ private fun SearchDefaultContent(onSuggestionClick: (String) -> Unit) {
         Spacer(Modifier.height(12.dp))
 
         val trending = listOf(
-            "Sếp Ơi Mai Đừng Gặp Nhau",
+            "Người Ấy Là Ai",
             "Sau Hôn Nhân",
             "Đồng Điệu Yêu Thương",
             "Sát Nhân Huyền Bí",
@@ -310,7 +365,10 @@ private fun SearchDefaultContent(onSuggestionClick: (String) -> Unit) {
 
         Spacer(Modifier.height(12.dp))
 
-        val genres = listOf("Phim Bộ", "Phim Lẻ", "Anime", "Kinh Dị", "Hành Động", "Tâm Lý", "Hài Hước")
+        val genres = listOf(
+            "Phim Bộ", "Phim Lẻ", "Anime", "Kinh Dị",
+            "Hành Động", "Tâm Lý", "Hài Hước"
+        )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(genres) { genre ->
                 Chip(text = genre, onClick = { onSuggestionClick(genre) })
@@ -332,7 +390,7 @@ private fun Chip(text: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(NetflixDarkGray)
+            .background(NetflixDarkGray.copy(alpha = 0.7f))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
@@ -365,7 +423,8 @@ private fun EmptySearchState(query: String) {
         Text(
             "Không có phim nào khớp với \"$query\"",
             color = NetflixTextSecondary,
-            modifier = Modifier.padding(top = 6.dp)
+            modifier = Modifier.padding(top = 6.dp),
+            textAlign = TextAlign.Center
         )
     }
 }
