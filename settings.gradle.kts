@@ -12,5 +12,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "NguoncFlix"
+
+rootProject.name = "StellarStream"
 include(":app")
