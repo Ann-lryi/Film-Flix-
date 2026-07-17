@@ -12,40 +12,49 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Bảng màu chủ đạo: đỏ rạp chiếu phim trên nền trung tính
-private val AccentRed = Color(0xFFE50914)
-
 private val DarkColors = darkColorScheme(
-    primary = AccentRed,
+    primary = PrimaryRed,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF5C0A0E),
-    onPrimaryContainer = Color(0xFFFFDAD6),
-    secondary = Color(0xFFC7BDBD),
-    background = Color(0xFF0F1115),
-    onBackground = Color(0xFFE6E1E5),
-    surface = Color(0xFF16181D),
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF23262E),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF4A4E58),
+    primaryContainer = PrimaryRedContainer,
+    onPrimaryContainer = OnPrimaryRedContainer,
+    secondary = GoldStar,
+    onSecondary = Color.Black,
+    secondaryContainer = Color(0xFF332A00),
+    onSecondaryContainer = Color(0xFFFFE082),
+    tertiary = AccentCyan,
+    onTertiary = Color.Black,
+    background = DarkBackground,
+    onBackground = OnDarkBackground,
+    surface = DarkSurface,
+    onSurface = OnDarkSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = OnDarkSurfaceVariant,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
 )
 
 private val LightColors = lightColorScheme(
-    primary = AccentRed,
+    primary = PrimaryRed,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFFFDAD6),
     onPrimaryContainer = Color(0xFF410002),
-    secondary = Color(0xFF775652),
-    background = Color(0xFFFDF8F7),
-    onBackground = Color(0xFF1C1B1B),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1C1B1B),
-    surfaceVariant = Color(0xFFF4DDDB),
-    onSurfaceVariant = Color(0xFF534342),
-    outline = Color(0xFF857371),
+    secondary = Color(0xFFD99B00),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFECB3),
+    onSecondaryContainer = Color(0xFF261A00),
+    tertiary = Color(0xFF00B8D4),
+    onTertiary = Color.White,
+    background = LightBackground,
+    onBackground = OnLightBackground,
+    surface = LightSurface,
+    onSurface = OnLightSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = OnLightSurfaceVariant,
+    outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
 )
 
-/** Tự động dark/light theo hệ thống (lựa chọn của user). */
+/** Theme cao cấp cho NguonC Stream (Film-Flix) với chế độ Dark/Light và System Window Insets chuẩn. */
 @Composable
 fun NguonCTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -71,6 +80,7 @@ fun NguonCTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = AppTypography,
         content = content,
     )
 }
