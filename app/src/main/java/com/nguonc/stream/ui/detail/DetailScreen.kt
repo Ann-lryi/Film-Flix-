@@ -2,7 +2,7 @@ package com.nguonc.stream.ui.detail
 
 import android.text.Html
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,10 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -52,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -67,9 +71,11 @@ import com.nguonc.stream.ui.components.ErrorBox
 import com.nguonc.stream.ui.components.LoadingBox
 import com.nguonc.stream.ui.components.MetaChip
 import com.nguonc.stream.ui.components.PlayOverlayButton
+import com.nguonc.stream.ui.components.PremiumPrimaryButton
+import com.nguonc.stream.ui.components.PremiumQualityBadge
 import com.nguonc.stream.ui.components.TmdbRating
 import com.nguonc.stream.ui.theme.AppGradients
-import com.nguonc.stream.ui.theme.PrimaryRed
+import com.nguonc.stream.ui.theme.Primary
 
 @Composable
 fun DetailScreen(
@@ -98,20 +104,20 @@ fun DetailScreen(
             )
         }
 
-        // Action Bar Trát trên cùng
+        // Floating top bar - glass morphism
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 color = Color.Black.copy(alpha = 0.55f),
                 shape = CircleShape,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                modifier = Modifier.size(42.dp)
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                modifier = Modifier.size(44.dp).shadow(8.dp, CircleShape)
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -122,19 +128,31 @@ fun DetailScreen(
                 }
             }
 
-            Surface(
-                color = Color.Black.copy(alpha = 0.55f),
-                shape = CircleShape,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                modifier = Modifier.size(42.dp)
-            ) {
-                IconButton(onClick = { /* Share action */ }) {
-                    Icon(
-                        Icons.Filled.Share,
-                        contentDescription = "Chia sẻ",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.55f),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                    modifier = Modifier.size(44.dp).shadow(8.dp, CircleShape)
+                ) {
+                    IconButton(onClick = { }) {
+                        Icon(
+                            Icons.Filled.Share,
+                            contentDescription = "Chia sẻ",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Surface(
+                    color = Color.Black.copy(alpha = 0.55f),
+                    shape = CircleShape,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                    modifier = Modifier.size(44.dp).shadow(8.dp, CircleShape)
+                ) {
+                    IconButton(onClick = { }) {
+                        Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
@@ -158,13 +176,13 @@ private fun DetailContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
     ) {
-        // ---- Backdrop siêu rộng + Play Overlay ----
+        // ---- BACKDROP WITH PARALLAX GLASS ----
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(460.dp)
         ) {
             AsyncImage(
                 model = movie.thumbUrl.ifBlank { movie.posterUrl },
@@ -172,39 +190,67 @@ private fun DetailContent(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
+            // Ambient blur layer to avoid hard edge
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0.2f to Color.Transparent,
-                            0.7f to MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
-                            1f to MaterialTheme.colorScheme.background,
+                            0f to Color.Black.copy(alpha = 0.2f),
+                            0.35f to Color.Transparent,
+                            0.7f to MaterialTheme.colorScheme.background.copy(alpha = 0.12f),
+                            0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.86f),
+                            1f to MaterialTheme.colorScheme.background
                         )
-                    ),
+                    )
             )
+
+            // Central play
             PlayOverlayButton(
                 onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode) },
-                modifier = Modifier.align(Alignment.Center)
+                modifier = Modifier.align(Alignment.Center),
+                size = 72.dp
             )
+
+            // Bottom gradient info holder
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .offset(y = (-8).dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    PremiumQualityBadge(text = (movie.quality ?: "FHD").uppercase())
+                    if (movie.year > 0) {
+                        Surface(color = Color.White.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp), border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.16f))) {
+                            Text("${movie.year}", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    if (movie.time.isNotBlank()) {
+                        Text("• ${movie.time}", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
         }
 
-        // ---- Header Card Panel (Thẻ thông tin chính, loại bỏ chồng chéo lỗi) ----
+        // ---- MAIN INFO CARD - overlapping ----
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = (-36).dp)
+                .offset(y = (-24).dp)
                 .padding(horizontal = 16.dp)
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
-                // Poster Phim
+                // Poster with deep shadow
                 Card(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 18.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
                     modifier = Modifier
-                        .width(130.dp)
+                        .width(128.dp)
                         .aspectRatio(2f / 3f)
+                        .shadow(20.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.8f))
                 ) {
                     AsyncImage(
                         model = movie.posterUrl,
@@ -213,248 +259,233 @@ private fun DetailContent(
                         contentScale = ContentScale.Crop,
                     )
                 }
-                
+
                 Spacer(Modifier.width(16.dp))
-                
-                // Title + Rating
+
                 Column(
-                    modifier = Modifier.padding(bottom = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
                 ) {
                     Text(
                         text = movie.name,
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (movie.originName.isNotBlank() && movie.originName != movie.name) {
                         Text(
                             text = movie.originName,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    TmdbRating(vote = movie.tmdb?.voteAverage ?: 0.0)
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TmdbRating(vote = movie.tmdb?.voteAverage ?: 0.0, large = true)
+                        if (movie.tmdb?.voteAverage ?: 0.0 > 0) {
+                            Icon(Icons.Filled.Star, null, tint = Primary.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                            Text(
+                                text = "${(movie.tmdb?.season ?: movie.episodeCurrent ?: "")}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // ---- Meta Chips ----
+            // Action buttons - full width primary
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                PremiumPrimaryButton(
+                    text = if (state.lastWatchedEpisode != null) "Tiếp tục xem" else "Xem ngay",
+                    onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode) },
+                    modifier = Modifier.weight(1f),
+                    icon = { Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(20.dp)) }
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)),
+                    modifier = Modifier.size(52.dp).clickable { onToggleFavorite() }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (state.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (state.isFavorite) Primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // Meta chips
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (movie.year > 0) MetaChip("${movie.year}")
-                if (movie.quality.isNotBlank()) MetaChip(movie.quality)
-                if (movie.episodeCurrent.isNotBlank()) MetaChip(movie.episodeCurrent)
-                if (movie.time.isNotBlank()) MetaChip(movie.time)
+                if (movie.lang.isNotBlank()) MetaChip(text = movie.lang)
+                if (movie.quality.isNotBlank()) MetaChip(text = movie.quality.uppercase(), accent = true)
+                if (movie.episodeCurrent.isNotBlank()) MetaChip(text = movie.episodeCurrent)
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            // Description with glass card
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Giới thiệu",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    val cleanContent = Html.fromHtml(movie.content ?: "", Html.FROM_HTML_MODE_LEGACY).toString()
+                    Text(
+                        text = cleanContent,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = if (isExpandedDescription) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isExpandedDescription) "Thu gọn" else "Xem thêm",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Primary,
+                        modifier = Modifier.clickable { isExpandedDescription = !isExpandedDescription }
+                    )
+                }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            // ---- Action Buttons (Xem Ngay + Yêu Thích) ----
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Button(
-                    onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .shadow(8.dp, RoundedCornerShape(14.dp), spotColor = PrimaryRed),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = if (state.lastWatchedEpisode != null) "XEM TIẾP TẬP CŨ" else "XEM PHIM NGAY",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (state.isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, if (state.isFavorite) PrimaryRed else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clickable(onClick = onToggleFavorite)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (state.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = "Yêu thích",
-                            tint = if (state.isFavorite) PrimaryRed else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // ---- Nội dung tóm tắt ----
-            val contentText = rememberPlainText(movie.content)
-            if (contentText.isNotBlank()) {
-                Text(
-                    text = "Nội dung phim",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = contentText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = if (isExpandedDescription) Int.MAX_VALUE else 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable { isExpandedDescription = !isExpandedDescription }
-                )
-                Text(
-                    text = if (isExpandedDescription) "Thu gọn ▲" else "Xem thêm ▼",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = PrimaryRed,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .clickable { isExpandedDescription = !isExpandedDescription }
-                )
-                Spacer(Modifier.height(24.dp))
-            }
-
-            // ---- Thể loại ----
-            if (movie.categories.isNotEmpty()) {
-                Text(
-                    text = "Thể loại",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            // Categories
+            if (movie.category.isNotEmpty()) {
+                Text("Thể loại", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(10.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(movie.categories) { category ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onCategoryClick(category.slug, category.name) },
-                            label = { Text(category.name, fontWeight = FontWeight.SemiBold) },
-                            shape = RoundedCornerShape(10.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
+                    items(movie.category) { cat ->
+                        Surface(
+                            shape = RoundedCornerShape(100.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                            modifier = Modifier.clickable { onCategoryClick(cat.slug, cat.name) }
+                        ) {
+                            Text(cat.name, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
                 Spacer(Modifier.height(20.dp))
             }
 
-            // ---- Diễn viên / Đạo diễn ----
-            if (movie.directors.any { it.isNotBlank() }) {
-                Text(
-                    text = "🎬 Đạo diễn: " + movie.directors.filter { it.isNotBlank() }.joinToString(", "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(6.dp))
-            }
-            if (movie.actors.any { it.isNotBlank() }) {
-                Text(
-                    text = "👥 Diễn viên: " + movie.actors.filter { it.isNotBlank() }.joinToString(", "),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(24.dp))
-            }
-
-            // ---- Danh sách tập phim ----
-            if (bundle.episodes.isNotEmpty()) {
-                Text(
-                    text = "Chọn tập phim",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(Modifier.height(12.dp))
-
-                if (bundle.episodes.size > 1) {
-                    ScrollableTabRow(
-                        selectedTabIndex = state.selectedServer,
-                        edgePadding = 0.dp,
-                        containerColor = Color.Transparent,
-                        divider = {}
-                    ) {
-                        bundle.episodes.forEachIndexed { index, srv ->
-                            val isSelected = state.selectedServer == index
-                            Tab(
-                                selected = isSelected,
-                                onClick = { onSelectServer(index) },
-                                text = {
-                                    Text(
-                                        text = srv.serverName,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(14.dp))
-                }
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(server?.serverData.orEmpty(), key = { it.slug }) { episode ->
-                        val isLast = episode.slug == state.lastWatchedEpisode
-                        FilterChip(
-                            selected = isLast,
-                            onClick = { onPlay(episode.slug) },
-                            label = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (isLast) {
-                                        Icon(
-                                            Icons.Filled.PlayArrow,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = Color.White
-                                        )
-                                        Spacer(Modifier.width(4.dp))
-                                    }
-                                    Text(episode.name, fontWeight = FontWeight.Bold)
-                                }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PrimaryRed,
-                                selectedLabelColor = Color.White,
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
-                            )
+            // Server selector tabs
+            if (bundle.episodes.size > 1) {
+                ScrollableTabRow(
+                    selectedTabIndex = state.selectedServer,
+                    containerColor = Color.Transparent,
+                    contentColor = Primary,
+                    divider = {},
+                    edgePadding = 0.dp
+                ) {
+                    bundle.episodes.forEachIndexed { index, ep ->
+                        Tab(
+                            selected = state.selectedServer == index,
+                            onClick = { onSelectServer(index) },
+                            text = {
+                                Text(
+                                    ep.serverName,
+                                    fontWeight = if (state.selectedServer == index) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
                         )
                     }
                 }
-            } else {
-                Text(
-                    text = "Phim hiện đang cập nhật tập mới.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Spacer(Modifier.height(12.dp))
             }
-            Spacer(Modifier.height(48.dp))
+
+            // Episode list - grid like pills
+            server?.let { srv ->
+                Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Danh sách tập (${srv.serverData.size})",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (state.lastWatchedEpisode != null) {
+                        Text(
+                            text = "Đang xem: ${state.lastWatchedEpisode}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+
+                // Episode chips - premium
+                val episodes = srv.serverData
+                val chunked = episodes.chunked(4)
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    chunked.forEach { rowEps ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                            rowEps.forEach { ep ->
+                                val isWatching = state.lastWatchedEpisode == ep.slug
+                                val selected = false // keep neutral
+                                FilterChip(
+                                    selected = isWatching,
+                                    onClick = { onPlay(ep.slug) },
+                                    label = {
+                                        Text(
+                                            text = ep.name,
+                                            fontWeight = if (isWatching) FontWeight.Bold else FontWeight.Medium,
+                                            modifier = Modifier.padding(vertical = 2.dp)
+                                        )
+                                    },
+                                    leadingIcon = if (isWatching) {
+                                        { Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(16.dp)) }
+                                    } else null,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = if (isWatching) Primary.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant,
+                                        labelColor = if (isWatching) Primary else MaterialTheme.colorScheme.onSurface,
+                                        selectedContainerColor = Primary,
+                                        selectedLabelColor = Color.White
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        borderColor = if (isWatching) Primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                        selectedBorderColor = Primary,
+                                        enabled = true,
+                                        selected = isWatching
+                                    ),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            // Fill remaining space if row not full
+                            repeat(4 - rowEps.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(100.dp))
         }
     }
 }
-
-@Composable
-private fun rememberPlainText(html: String): String =
-    remember(html) {
-        if (html.isBlank()) ""
-        else Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString().trim()
-    }

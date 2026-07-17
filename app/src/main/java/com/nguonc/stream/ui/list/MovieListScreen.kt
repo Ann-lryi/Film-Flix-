@@ -1,25 +1,33 @@
 package com.nguonc.stream.ui.list
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -31,6 +39,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +48,7 @@ import com.nguonc.stream.ui.components.EmptyBox
 import com.nguonc.stream.ui.components.ErrorBox
 import com.nguonc.stream.ui.components.LoadingBox
 import com.nguonc.stream.ui.components.MoviePosterCard
+import com.nguonc.stream.ui.theme.Primary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,7 +65,6 @@ fun MovieListScreen(
 
     LaunchedEffect(source, key) { viewModel.init(source, key) }
 
-    // Tự tải trang kế khi cuộn gần cuối lưới
     val shouldLoadMore by remember {
         derivedStateOf {
             val info = gridState.layoutInfo
@@ -69,51 +79,54 @@ fun MovieListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title, maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(title, maxLines = 1, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black))
+                        Surface(shape = RoundedCornerShape(100.dp), color = MaterialTheme.colorScheme.surfaceVariant, border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))) {
+                            Text("${state.items.size}", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
+                navigationIcon = {
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(start = 8.dp).size(40.dp)) {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại") }
+                    }
+                },
+                actions = {
+                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.padding(end = 8.dp).size(40.dp)) {
+                        IconButton(onClick = {}) { Icon(Icons.Filled.FilterList, contentDescription = null) }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                modifier = Modifier.statusBarsPadding()
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background)) {
             when {
                 state.isInitialLoading -> LoadingBox()
                 state.error != null -> ErrorBox(state.error!!, onRetry = viewModel::retryInitial)
                 state.items.isEmpty() -> EmptyBox("Không có phim nào")
                 else -> LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Adaptive(minSize = 110.dp),
-                    contentPadding = PaddingValues(16.dp),
+                    columns = GridCells.Adaptive(minSize = 126.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     items(state.items, key = { it.id }) { movie ->
                         MoviePosterCard(movie = movie, onClick = { onMovieClick(movie.slug) })
                     }
                     if (state.isLoadingMore) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(28.dp), color = Primary, strokeWidth = 2.5.dp)
                             }
                         }
                     } else if (state.loadMoreError) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                TextButton(onClick = viewModel::loadNextPage) {
-                                    Text("Tải thêm thất bại — Thử lại")
-                                }
+                            Box(modifier = Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                                TextButton(onClick = viewModel::loadNextPage) { Text("Tải thêm thất bại — Thử lại", color = Primary) }
                             }
                         }
                     }
