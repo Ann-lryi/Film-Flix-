@@ -1,8 +1,5 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.compose)
 }
@@ -43,11 +40,9 @@ android {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
-}
+// jvmTarget của built-in Kotlin (AGP 9.x) tự lấy từ compileOptions.targetCompatibility ở trên -
+// không cần khai báo lại qua khối kotlin { compilerOptions {...} } (xác nhận qua tài liệu chính
+// thức developer.android.com/build/migrate-to-built-in-kotlin).
 
 dependencies {
     implementation(libs.androidx.core.ktx)
