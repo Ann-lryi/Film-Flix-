@@ -36,14 +36,15 @@ jobs:
           gradle-version: wrapper
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
-      - name: Kiểm tra môi trường
+      - name: Kiểm tra môi trường & Cấp quyền thực thi Gradlew
         run: |
           java -version
           echo "SDK: $ANDROID_HOME"
-          ls gradle/wrapper/
+          chmod +x ./gradlew
+          ls -l ./gradlew
 
       - name: Build APK Debug
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: chmod +x ./gradlew && ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
