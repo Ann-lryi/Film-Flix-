@@ -3,7 +3,6 @@ package com.aho.yunphim.data.repository
 import com.aho.yunphim.data.UiState
 import com.aho.yunphim.data.model.MovieDetail
 import com.aho.yunphim.data.model.MovieSummary
-import com.aho.yunphim.data.model.ServerGroup
 import com.aho.yunphim.data.remote.NguonCApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
@@ -16,15 +15,10 @@ data class MoviePage(
     val lastPage: Int,
 )
 
-data class MovieDetailBundle(
-    val detail: MovieDetail,
-    val servers: List<ServerGroup>,
-)
-
 class MovieRepository(private val api: NguonCApi) {
 
-    suspend fun fetchList(type: String, page: Int): UiState<MoviePage> = safeCall {
-        val response = api.getMovieList(type, page)
+    suspend fun fetchList(path: String, page: Int): UiState<MoviePage> = safeCall {
+        val response = api.getMovieList(path, page)
         val pagination = response.effectivePagination
         MoviePage(
             items = response.items,
@@ -33,11 +27,9 @@ class MovieRepository(private val api: NguonCApi) {
         )
     }
 
-    suspend fun fetchDetail(slug: String): UiState<MovieDetailBundle> = safeCall {
+    suspend fun fetchDetail(slug: String): UiState<MovieDetail> = safeCall {
         val response = api.getMovieDetail(slug)
-        val detail = response.movie
-            ?: throw IllegalStateException("Response JSON không có field 'movie'.")
-        MovieDetailBundle(detail = detail, servers = response.episodes)
+        response.movie ?: throw IllegalStateException("Response JSON không có field 'movie'.")
     }
 
     suspend fun search(keyword: String, page: Int): UiState<MoviePage> = safeCall {

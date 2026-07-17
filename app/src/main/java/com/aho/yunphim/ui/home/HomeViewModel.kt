@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
-    val selectedType: String = NguonCEndpoints.ListType.NEW_UPDATE,
+    val selectedPath: String = NguonCEndpoints.ListPath.NEW_UPDATE,
     val items: List<MovieSummary> = emptyList(),
     val page: Int = 1,
     val lastPage: Int = 1,
@@ -35,10 +35,10 @@ class HomeViewModel(private val repository: MovieRepository) : ViewModel() {
         loadFirstPage()
     }
 
-    fun selectType(type: String) {
-        if (_state.value.selectedType == type) return
+    fun selectPath(path: String) {
+        if (_state.value.selectedPath == path) return
         loadJob?.cancel()
-        _state.value = HomeUiState(selectedType = type)
+        _state.value = HomeUiState(selectedPath = path)
         loadFirstPage()
     }
 
@@ -46,10 +46,10 @@ class HomeViewModel(private val repository: MovieRepository) : ViewModel() {
 
     private fun loadFirstPage() {
         loadJob?.cancel()
-        val type = _state.value.selectedType
+        val path = _state.value.selectedPath
         loadJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            when (val result = repository.fetchList(type, 1)) {
+            when (val result = repository.fetchList(path, 1)) {
                 is UiState.Success -> _state.update {
                     it.copy(
                         items = result.data.items,
@@ -77,7 +77,7 @@ class HomeViewModel(private val repository: MovieRepository) : ViewModel() {
         if (current.isLoadingMore || current.isLoading || current.page >= current.lastPage) return
         loadJob = viewModelScope.launch {
             _state.update { it.copy(isLoadingMore = true) }
-            when (val result = repository.fetchList(current.selectedType, current.page + 1)) {
+            when (val result = repository.fetchList(current.selectedPath, current.page + 1)) {
                 is UiState.Success -> _state.update {
                     it.copy(
                         items = it.items + result.data.items,

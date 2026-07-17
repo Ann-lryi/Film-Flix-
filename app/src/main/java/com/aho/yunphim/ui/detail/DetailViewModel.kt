@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aho.yunphim.data.UiState
 import com.aho.yunphim.data.model.MovieDetail
-import com.aho.yunphim.data.model.ServerGroup
 import com.aho.yunphim.data.repository.MovieRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.launch
 data class DetailUiState(
     val isLoading: Boolean = true,
     val detail: MovieDetail? = null,
-    val servers: List<ServerGroup> = emptyList(),
     val error: String? = null,
     val isSchemaMismatch: Boolean = false,
 )
@@ -39,7 +37,7 @@ class DetailViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             when (val result = repository.fetchDetail(slug)) {
                 is UiState.Success -> _state.update {
-                    it.copy(isLoading = false, detail = result.data.detail, servers = result.data.servers)
+                    it.copy(isLoading = false, detail = result.data)
                 }
 
                 is UiState.Error -> _state.update {
@@ -55,3 +53,4 @@ class DetailViewModel(
         }
     }
 }
+

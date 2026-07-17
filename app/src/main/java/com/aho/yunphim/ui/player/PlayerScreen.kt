@@ -440,7 +440,7 @@ private fun EpisodeSwitcherSheet(
                         modifier = Modifier.clickable { serverIndex = index },
                     ) {
                         Text(
-                            text = server.serverName?.takeIf { it.isNotBlank() } ?: "Server ${index + 1}",
+                            text = server.displayName?.takeIf { it.isNotBlank() } ?: "Server ${index + 1}",
                             color = if (isSelected) Color.White else YunPhimColors.TextSecondary,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         )
@@ -453,7 +453,7 @@ private fun EpisodeSwitcherSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                servers.getOrNull(serverIndex)?.serverData.orEmpty().forEachIndexed { index, ep ->
+                servers.getOrNull(serverIndex)?.episodes.orEmpty().forEachIndexed { index, ep ->
                     val isCurrent = serverIndex == currentServerIndex && index == currentEpisodeIndex
                     Surface(
                         shape = RoundedCornerShape(6.dp),

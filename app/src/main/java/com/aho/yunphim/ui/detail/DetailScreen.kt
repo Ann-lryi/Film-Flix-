@@ -79,7 +79,8 @@ fun DetailScreen(
 
             state.detail != null -> {
                 val detail = state.detail!!
-                val currentEpisodes = state.servers.getOrNull(selectedServerIndex)?.serverData.orEmpty()
+                val servers = detail.servers
+                val currentEpisodes = servers.getOrNull(selectedServerIndex)?.episodes.orEmpty()
 
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item { HeroSection(detail = detail, onBack = onBack) }
@@ -93,10 +94,10 @@ fun DetailScreen(
 
                     item { InfoSection(detail = detail) }
 
-                    if (state.servers.isNotEmpty()) {
+                    if (servers.isNotEmpty()) {
                         item {
                             ServerTabs(
-                                servers = state.servers,
+                                servers = servers,
                                 selectedIndex = selectedServerIndex,
                                 onSelect = { selectedServerIndex = it },
                             )
@@ -189,14 +190,14 @@ private fun InfoSection(detail: MovieDetail) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             detail.quality?.takeIf { it.isNotBlank() }?.let { MetaChip(it) }
-            detail.lang?.takeIf { it.isNotBlank() }?.let { MetaChip(it) }
+            detail.language?.takeIf { it.isNotBlank() }?.let { MetaChip(it) }
             detail.time?.takeIf { it.isNotBlank() }?.let { MetaChip(it) }
         }
-        if (!detail.content.isNullOrBlank()) {
+        if (!detail.description.isNullOrBlank()) {
             Spacer(Modifier.height(12.dp))
             var expanded by remember { mutableStateOf(false) }
             Text(
-                text = htmlToPlainText(detail.content),
+                text = htmlToPlainText(detail.description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = YunPhimColors.TextSecondary,
                 maxLines = if (expanded) Int.MAX_VALUE else 4,
@@ -233,7 +234,7 @@ private fun ServerTabs(servers: List<ServerGroup>, selectedIndex: Int, onSelect:
                 modifier = Modifier.clickable { onSelect(index) },
             ) {
                 Text(
-                    text = server.serverName?.takeIf { it.isNotBlank() } ?: "Server ${index + 1}",
+                    text = server.displayName?.takeIf { it.isNotBlank() } ?: "Server ${index + 1}",
                     style = MaterialTheme.typography.labelLarge,
                     color = if (isSelected) Color.White else YunPhimColors.TextSecondary,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),

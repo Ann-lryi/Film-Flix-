@@ -20,11 +20,13 @@ jobs:
           java-version: '17'
 
       # Không commit gradle-wrapper.jar (binary) trong repo này. Dùng action chính chủ của Gradle
-      # để cấp phát đúng bản Gradle 9.1.0 (bản AGP 9.1.1 yêu cầu tối thiểu) trực tiếp trên runner.
-      - name: Set up Gradle 9.1.0
+      # để cấp phát đúng bản Gradle 9.3.1 trực tiếp trên runner.
+      # (9.1.0 ban đầu tra được từ doc AGP 9.1 đã lỗi thời so với yêu cầu thực tế của AGP 9.1.1 -
+      # log build thật 17/07/2026 xác nhận minimum là 9.3.1, đáng tin hơn kết quả search.)
+      - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.1.0'
+          gradle-version: '9.3.1'
           # Yêu cầu bắt buộc của dự án: mọi dependency tải mới hoàn toàn mỗi lần build,
           # không dùng cache giữa các lần chạy CI.
           cache-disabled: true

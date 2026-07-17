@@ -69,7 +69,7 @@ fun HomeScreen(
             .systemBarsPadding(),
     ) {
         TopBar(onSearchClick = onSearchClick)
-        CategoryTabs(selected = state.selectedType, onSelect = viewModel::selectType)
+        CategoryTabs(selected = state.selectedPath, onSelect = viewModel::selectPath)
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 state.isLoading -> FullScreenLoading()
@@ -134,11 +134,11 @@ private fun TopBar(onSearchClick: () -> Unit) {
 private data class CategoryTab(val type: String, val label: String)
 
 private val categoryTabs = listOf(
-    CategoryTab(NguonCEndpoints.ListType.NEW_UPDATE, "Mới cập nhật"),
-    CategoryTab(NguonCEndpoints.ListType.SINGLE, "Phim lẻ"),
-    CategoryTab(NguonCEndpoints.ListType.SERIES, "Phim bộ"),
-    CategoryTab(NguonCEndpoints.ListType.ANIME, "Hoạt hình"),
-    CategoryTab(NguonCEndpoints.ListType.TV_SHOW, "TV Shows"),
+    CategoryTab(NguonCEndpoints.ListPath.NEW_UPDATE, "Mới cập nhật"),
+    CategoryTab(NguonCEndpoints.ListPath.SINGLE, "Phim lẻ"),
+    CategoryTab(NguonCEndpoints.ListPath.SERIES, "Phim bộ"),
+    CategoryTab(NguonCEndpoints.ListPath.ANIME, "Hoạt hình"),
+    CategoryTab(NguonCEndpoints.ListPath.ADULT_18, "18+"),
 )
 
 @Composable

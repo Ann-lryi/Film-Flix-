@@ -31,7 +31,9 @@ import kotlin.coroutines.resume
 object WebViewStreamResolver {
 
     private val mediaUrlRegex = Regex(
-        pattern = """https?://[^\s"'<>]+\.(m3u8|mp4)(\?[^\s"'<>]*)?""",
+        // .m3u9 là đuôi playlist "mobile" riêng của streamc.xyz (xác nhận qua plugin CloudStream
+        // NguonC thật) - regex ban đầu chỉ bắt .m3u8/.mp4, bỏ sót đuôi này.
+        pattern = """https?://[^\s"'<>]+\.(m3u8|m3u9|mp4)(\?[^\s"'<>]*)?""",
         option = RegexOption.IGNORE_CASE,
     )
 

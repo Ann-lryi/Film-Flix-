@@ -96,7 +96,13 @@ fun YunPhimNavHost(
             val episodeIndex = args?.getInt("episodeIndex") ?: 0
             PlayerScreen(
                 viewModel = rememberVm(key = "$slug-$serverIndex-$episodeIndex") {
-                    PlayerViewModel(container.movieRepository, slug, serverIndex, episodeIndex)
+                    PlayerViewModel(
+                        repository = container.movieRepository,
+                        streamcResolver = container.streamcResolver,
+                        slug = slug,
+                        serverIndex = serverIndex,
+                        episodeIndex = episodeIndex,
+                    )
                 },
                 onBack = { navController.popBackStack() },
                 onSwitchEpisode = { newServerIndex, newEpisodeIndex ->

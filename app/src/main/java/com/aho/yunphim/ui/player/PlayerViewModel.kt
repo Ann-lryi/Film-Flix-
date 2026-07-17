@@ -27,8 +27,18 @@ sealed interface PlayerUiState {
     ) : PlayerUiState
 }
 
+/**
+ * Chiến lược phát:
+ *  1. Lấy URL từ episode.m3u8 (ưu tiên) hoặc episode.embed - đúng thứ tự ưu tiên plugin gốc dùng.
+ *  2. Nếu URL thuộc họ streamc.xyz (StreamcResolver.isStreamcFamily) -> KHÔNG đưa thẳng vào
+ *     ExoPlayer (chắc chắn lỗi, site yêu cầu bắt tay token trước) - chạy StreamcResolver ngay
+ *     trong lúc load(), trả về URL proxy cục bộ nếu thành công.
+ *  3. Nếu không thuộc họ streamc.xyz - thử phát thẳng, WebViewStreamResolver (dò tổng quát qua
+ *     WebView) là lưới an toàn cuối nếu ExoPlayer báo lỗi.
+ */
 class PlayerViewModel(
     private val repository: MovieRepository,
+    private val streamcResolver: StreamcResolver,
     private val slug: String,
     private val serverIndex: Int,
     private val episodeIndex: Int,
@@ -38,6 +48,7 @@ class PlayerViewModel(
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
     private var detailServers: List<ServerGroup> = emptyList()
+    private var movieTitle: String = ""
 
     init {
         load()
@@ -45,35 +56,19 @@ class PlayerViewModel(
 
     fun retry() = load()
 
+    override fun onCleared() {
+        super.onCleared()
+        streamcResolver.stopActiveProxies()
+    }
+
     private fun load() {
         viewModelScope.launch {
             _state.value = PlayerUiState.Loading
             when (val result = repository.fetchDetail(slug)) {
                 is UiState.Success -> {
                     detailServers = result.data.servers
-                    val episode = detailServers.getOrNull(serverIndex)?.serverData?.getOrNull(episodeIndex)
-                    if (episode == null) {
-                        _state.value = PlayerUiState.Error(
-                            "Không tìm thấy tập phim tại server=$serverIndex, tập=$episodeIndex trong " +
-                                "response - danh sách server/tập có thể đã đổi thứ tự.",
-                        )
-                        return@launch
-                    }
-                    val url = episode.linkM3u8?.takeIf { it.isNotBlank() } ?: episode.linkEmbed
-                    if (url.isNullOrBlank()) {
-                        _state.value = PlayerUiState.Error(
-                            "Tập này không có link phát (cả link_m3u8 và link_embed đều trống trong JSON).",
-                        )
-                        return@launch
-                    }
-                    _state.value = PlayerUiState.Ready(
-                        title = result.data.detail.name.orEmpty(),
-                        episodeLabel = episode.displayName,
-                        streamUrl = url,
-                        servers = detailServers,
-                        serverIndex = serverIndex,
-                        episodeIndex = episodeIndex,
-                    )
+                    movieTitle = result.data.name.orEmpty()
+                    resolveEpisode(serverIndex, episodeIndex)
                 }
 
                 is UiState.Error -> _state.value = PlayerUiState.Error(result.message, result.isSchemaMismatch)
@@ -82,17 +77,62 @@ class PlayerViewModel(
         }
     }
 
+    private suspend fun resolveEpisode(sIdx: Int, eIdx: Int) {
+        val episode = detailServers.getOrNull(sIdx)?.episodes?.getOrNull(eIdx)
+        if (episode == null) {
+            _state.value = PlayerUiState.Error(
+                "Không tìm thấy tập phim tại server=$sIdx, tập=$eIdx trong response - danh sách " +
+                    "server/tập có thể đã đổi thứ tự.",
+            )
+            return
+        }
+        val candidateUrl = episode.m3u8?.takeIf { it.isNotBlank() } ?: episode.embed
+        if (candidateUrl.isNullOrBlank()) {
+            _state.value = PlayerUiState.Error("Tập này không có link phát (cả m3u8 và embed đều trống trong JSON).")
+            return
+        }
+
+        if (StreamcResolver.isStreamcFamily(candidateUrl)) {
+            val resolved = streamcResolver.resolve(candidateUrl)
+            if (resolved == null) {
+                _state.value = PlayerUiState.Error(
+                    "Không dò được link phát qua cơ chế streamc.xyz đã biết (POST lấy xat -> GET " +
+                        ".m3u9). Site có thể đã đổi cơ chế xác thực so với lúc port từ plugin gốc.",
+                )
+                return
+            }
+            _state.value = PlayerUiState.Ready(
+                title = movieTitle,
+                episodeLabel = episode.displayName,
+                streamUrl = resolved,
+                servers = detailServers,
+                serverIndex = sIdx,
+                episodeIndex = eIdx,
+            )
+        } else {
+            _state.value = PlayerUiState.Ready(
+                title = movieTitle,
+                episodeLabel = episode.displayName,
+                streamUrl = candidateUrl,
+                servers = detailServers,
+                serverIndex = sIdx,
+                episodeIndex = eIdx,
+            )
+        }
+    }
+
     /**
-     * Gọi khi ExoPlayer báo lỗi phát trực tiếp streamUrl hiện tại. Bản thân ViewModel không giữ
-     * WebView (cần Context/lifecycle của UI) - chỉ bật cờ [PlayerUiState.Ready.isResolvingFallback],
-     * Composable quan sát cờ này để tự chạy [WebViewStreamResolver] rồi gọi lại
-     * [onFallbackResolved]/[onFallbackError].
+     * Gọi khi ExoPlayer báo lỗi phát trực tiếp streamUrl hiện tại (chỉ xảy ra với nhánh KHÔNG
+     * thuộc họ streamc.xyz - nhánh streamc.xyz đã tự xử lý ở [resolveEpisode]). Bản thân
+     * ViewModel không giữ WebView (cần Context/lifecycle của UI) - chỉ bật cờ
+     * [PlayerUiState.Ready.isResolvingFallback], Composable quan sát cờ này để tự chạy
+     * [WebViewStreamResolver] rồi gọi lại [onFallbackResolved]/[onFallbackError].
      */
     fun onDirectPlaybackFailed() {
         val current = _state.value
         if (current !is PlayerUiState.Ready || current.isResolvingFallback || current.fallbackFailed) return
-        val episode = detailServers.getOrNull(current.serverIndex)?.serverData?.getOrNull(current.episodeIndex)
-        val embedUrl = episode?.linkEmbed
+        val episode = detailServers.getOrNull(current.serverIndex)?.episodes?.getOrNull(current.episodeIndex)
+        val embedUrl = episode?.embed
         if (embedUrl.isNullOrBlank() || embedUrl == current.streamUrl) {
             _state.value = current.copy(fallbackFailed = true)
             return
@@ -102,7 +142,7 @@ class PlayerViewModel(
 
     fun embedUrlForFallback(): String? {
         val current = _state.value as? PlayerUiState.Ready ?: return null
-        return detailServers.getOrNull(current.serverIndex)?.serverData?.getOrNull(current.episodeIndex)?.linkEmbed
+        return detailServers.getOrNull(current.serverIndex)?.episodes?.getOrNull(current.episodeIndex)?.embed
     }
 
     fun onFallbackResolved(resolvedUrl: String) {
