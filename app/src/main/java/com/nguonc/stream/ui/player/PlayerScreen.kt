@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.pm.ActivityInfo
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -55,7 +56,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.PlayerView
 import com.nguonc.stream.ui.components.ErrorBox
 import com.nguonc.stream.ui.components.LoadingBox
-import com.nguonc.stream.ui.theme.Primary
+import com.nguonc.stream.ui.theme.Aurora
+import com.nguonc.stream.ui.theme.BrandCherry
+import com.nguonc.stream.ui.theme.SunAmber
+import com.nguonc.stream.ui.theme.SunGold
 
 @Composable
 fun PlayerScreen(
@@ -101,66 +105,254 @@ fun PlayerScreen(
             else -> {
                 val player = remember { viewModel.player }
                 AndroidView(
-                    factory = { ctx -> PlayerView(ctx).apply { useController = true; keepScreenOn = true; setShowNextButton(false); setShowPreviousButton(false); this.player = player } },
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            useController = true
+                            keepScreenOn = true
+                            setShowNextButton(false)
+                            setShowPreviousButton(false)
+                            this.player = player
+                        }
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
 
-                // Top scrim + header
-                Box(modifier = Modifier.fillMaxWidth().height(110.dp).background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent))).align(Alignment.TopCenter))
+                // Top scrim
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Black.copy(alpha = 0.85f),
+                                    Color.Black.copy(alpha = 0.55f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                        .align(Alignment.TopCenter)
+                )
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp).align(Alignment.TopStart),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .align(Alignment.TopStart),
                 ) {
-                    Surface(color = Color.Black.copy(alpha = 0.55f), shape = CircleShape, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), modifier = Modifier.size(42.dp)) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Color.White) }
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.55f),
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
+                        modifier = Modifier
+                            .size(44.dp)
+                            .shadow(10.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.5f))
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Quay lại",
+                                tint = Color.White
+                            )
+                        }
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(text = state.movieName, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color.White)
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = state.movieName,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = (-0.2).sp
+                            ),
+                            color = Color.White,
+                            maxLines = 1
+                        )
                         if (state.currentEpisodeName.isNotBlank()) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Surface(color = Primary, shape = RoundedCornerShape(6.dp)) { Text("ĐANG PHÁT", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black), color = Color.White, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)) }
-                                Text(text = state.currentEpisodeName, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    color = Color.Transparent,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(0.5.dp, BrandCherry),
+                                    modifier = Modifier
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(BrandCherry)
+                                        )
+                                        Text(
+                                            "LIVE",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = 0.6.sp
+                                            ),
+                                            color = BrandCherry
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = state.currentEpisodeName,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    maxLines = 1
+                                )
                             }
+                        }
+                    }
+
+                    // Quality badge
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = SunGold.copy(alpha = 0.18f),
+                        border = BorderStroke(0.5.dp, SunGold.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                tint = SunAmber,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = (state.quality.ifBlank { "FHD" }).uppercase(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Black
+                                ),
+                                color = SunAmber
+                            )
                         }
                     }
                 }
 
                 if (state.episodes.size > 1) {
-                    Box(modifier = Modifier.fillMaxWidth().height(120.dp).align(Alignment.BottomCenter).background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.92f)))))
+                    // Bottom scrim
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.55f),
+                                        Color.Black.copy(alpha = 0.92f)
+                                    )
+                                )
+                            )
+                    )
+
+                    // Header strip
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 76.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .height(14.dp)
+                                .clip(CircleShape)
+                                .background(Aurora.BrandLinear)
+                        )
+                        Text(
+                            "Danh sách tập",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color.White
+                        )
+                        Text(
+                            "· ${state.episodes.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 20.dp, vertical = 20.dp),
                     ) {
                         items(state.episodes, key = { it.slug }) { episode ->
                             val selected = episode.slug == state.currentEpisodeSlug
-                            FilterChip(
+                            PlayerEpisodePill(
+                                name = episode.name,
                                 selected = selected,
-                                onClick = { viewModel.switchEpisode(episode) },
-                                label = {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        if (selected) Icon(Icons.Filled.PlayArrow, null, modifier = Modifier.size(16.dp), tint = Color.White)
-                                        Text(episode.name, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-                                    }
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = Color.Black.copy(alpha = 0.55f),
-                                    labelColor = Color.White,
-                                    selectedContainerColor = Primary,
-                                    selectedLabelColor = Color.White,
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    borderColor = Color.White.copy(alpha = 0.22f),
-                                    selectedBorderColor = Primary,
-                                    enabled = true,
-                                    selected = selected
-                                )
+                                onClick = { viewModel.switchEpisode(episode) }
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlayerEpisodePill(
+    name: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) Color.Transparent
+                else Color.Black.copy(alpha = 0.55f),
+        border = BorderStroke(
+            1.dp,
+            if (selected) Color.Transparent
+            else Color.White.copy(alpha = 0.20f)
+        ),
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .let {
+                if (selected) it.background(Aurora.BrandLinear) else it
+            }
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (selected) FontWeight.Black else FontWeight.SemiBold
+                ),
+                color = Color.White
+            )
         }
     }
 }

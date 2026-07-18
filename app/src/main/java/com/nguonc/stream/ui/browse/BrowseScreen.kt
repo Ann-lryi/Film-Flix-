@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -45,10 +48,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nguonc.stream.ui.components.ErrorBox
 import com.nguonc.stream.ui.components.LoadingBox
-import com.nguonc.stream.ui.theme.AccentCyan
-import com.nguonc.stream.ui.theme.AccentViolet
-import com.nguonc.stream.ui.theme.AppGradients
-import com.nguonc.stream.ui.theme.Primary
+import com.nguonc.stream.ui.theme.Aurora
+import com.nguonc.stream.ui.theme.AuroraCyan
+import com.nguonc.stream.ui.theme.AuroraViolet
+import com.nguonc.stream.ui.theme.BrandCherry
+import com.nguonc.stream.ui.theme.OnDarkSurfaceVariant
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -59,169 +63,217 @@ fun BrowseScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    when {
-        state.isLoading -> LoadingBox()
-        state.error != null -> ErrorBox(state.error!!, onRetry = viewModel::load)
-        else -> Column(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Ambient backgrounds
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(100.dp),
-                color = AccentViolet.copy(alpha = 0.14f),
-                border = BorderStroke(1.dp, AccentViolet.copy(alpha = 0.2f))
+                .size(360.dp)
+                .align(Alignment.TopStart)
+                .offset(x = (-100).dp, y = (-40).dp)
+                .drawBehind {
+                    drawCircle(brush = Aurora.AmbientViolet, radius = 380.dp.toPx())
+                }
+        )
+        Box(
+            modifier = Modifier
+                .size(320.dp)
+                .align(Alignment.CenterEnd)
+                .offset(x = 80.dp, y = 100.dp)
+                .drawBehind {
+                    drawCircle(brush = Aurora.AmbientCyan, radius = 320.dp.toPx())
+                }
+        )
+
+        when {
+            state.isLoading -> LoadingBox()
+            state.error != null -> ErrorBox(state.error!!, onRetry = viewModel::load)
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp, bottom = 140.dp),
             ) {
-                Text(
-                    "KHÁM PHÁ",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black, letterSpacing = 1.2.sp),
-                    color = AccentViolet,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                // Hero header
+                BrowseHeader(
+                    categoryCount = state.categories.size,
+                    countryCount = state.countries.size,
                 )
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "Thế giới điện ảnh\nvô tận đang chờ",
-                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Black, lineHeight = 32.sp),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Chọn thể loại hoặc quốc gia yêu thích để bắt đầu",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
-            Spacer(Modifier.height(28.dp))
+                Spacer(Modifier.height(28.dp))
 
-            PremiumSectionCard(
-                title = "Thể loại phim",
-                count = state.categories.size,
-                icon = Icons.Filled.Category,
-                gradient = AppGradients.PrimaryGradient,
-                iconColor = Primary
-            ) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                PremiumSectionCard(
+                    title = "Thể loại phim",
+                    count = state.categories.size,
+                    subtitle = "Khám phá theo thể loại yêu thích",
+                    icon = Icons.Filled.Category,
+                    accent = Aurora.BrandLinear,
+                    iconColor = BrandCherry,
                 ) {
-                    state.categories.forEach { category ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onCategoryClick(category.slug, category.name) }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(Primary)
-                                        .shadow(4.dp, CircleShape, ambientColor = Primary)
-                                )
-                                Text(
-                                    text = category.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        state.categories.forEach { category ->
+                            CategoryChip(
+                                name = category.name,
+                                accent = false,
+                                onClick = { onCategoryClick(category.slug, category.name) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                PremiumSectionCard(
+                    title = "Quốc gia & Khu vực",
+                    count = state.countries.size,
+                    subtitle = "Điện ảnh từ mọi nền văn hóa",
+                    icon = Icons.Filled.Public,
+                    accent = Brush.linearGradient(listOf(AuroraCyan, Color(0xFF00B8D4))),
+                    iconColor = AuroraCyan,
+                ) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        state.countries.forEach { country ->
+                            CategoryChip(
+                                name = "${countryFlag(country.name)} ${country.name}",
+                                accent = true,
+                                onClick = { onCountryClick(country.slug, country.name) }
+                            )
                         }
                     }
                 }
             }
-
-            Spacer(Modifier.height(20.dp))
-
-            PremiumSectionCard(
-                title = "Quốc gia & Khu vực",
-                count = state.countries.size,
-                icon = Icons.Filled.Public,
-                gradient = Brush.linearGradient(listOf(AccentCyan, Color(0xFF00B8D4))),
-                iconColor = AccentCyan
-            ) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    state.countries.forEach { country ->
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onCountryClick(country.slug, country.name) }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(text = countryFlag(country.name), style = MaterialTheme.typography.bodyMedium)
-                                Text(
-                                    text = country.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(120.dp))
         }
     }
+}
+
+@Composable
+private fun BrowseHeader(
+    categoryCount: Int,
+    countryCount: Int,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(100.dp),
+            color = AuroraViolet.copy(alpha = 0.16f),
+            border = BorderStroke(1.dp, AuroraViolet.copy(alpha = 0.32f)),
+        ) {
+            Text(
+                "KHÁM PHÁ",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.5.sp
+                ),
+                color = AuroraViolet,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .height(1.dp)
+                .width(60.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.16f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+    }
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = "Thế giới điện ảnh\nvô tận đang chờ",
+        style = MaterialTheme.typography.displaySmall.copy(
+            fontWeight = FontWeight.Black,
+            lineHeight = 32.sp,
+            letterSpacing = (-0.6).sp
+        ),
+        color = MaterialTheme.colorScheme.onBackground
+    )
+    Spacer(Modifier.height(8.dp))
+    Text(
+        text = "$categoryCount thể loại  •  $countryCount quốc gia",
+        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+        color = OnDarkSurfaceVariant
+    )
 }
 
 @Composable
 private fun PremiumSectionCard(
     title: String,
     count: Int,
+    subtitle: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    gradient: Brush,
+    accent: Brush,
     iconColor: Color,
     content: @Composable () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(28.dp),
+                ambientColor = Color.Black.copy(alpha = 0.4f)
+            )
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.padding(22.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(iconColor.copy(alpha = 0.14f)),
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(iconColor.copy(alpha = 0.16f))
+                            .border(
+                                BorderStroke(1.dp, iconColor.copy(alpha = 0.3f)),
+                                RoundedCornerShape(14.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(22.dp))
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                     Column {
                         Text(
                             text = title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "$count mục",
+                            text = subtitle,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -230,26 +282,71 @@ private fun PremiumSectionCard(
                 Box(
                     modifier = Modifier
                         .width(3.dp)
-                        .height(24.dp)
+                        .height(28.dp)
                         .clip(RoundedCornerShape(100.dp))
-                        .background(gradient)
+                        .background(accent)
+                        .shadow(6.dp, RoundedCornerShape(100.dp), ambientColor = iconColor.copy(alpha = 0.6f))
                 )
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(20.dp))
             content()
         }
     }
 }
 
-private fun countryFlag(name: String): String {
-    return when (name.lowercase()) {
-        "hàn quốc" -> "🇰🇷"
-        "nhật bản", "nhat ban" -> "🇯🇵"
-        "trung quốc", "trung quoc" -> "🇨🇳"
-        "âu mỹ", "au my", "mỹ", "my" -> "🇺🇸"
-        "việt nam", "viet nam" -> "🇻🇳"
-        "thái lan", "thai lan" -> "🇹🇭"
-        "anh" -> "🇬🇧"
-        else -> "🌍"
+@Composable
+private fun CategoryChip(
+    name: String,
+    accent: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (accent) AuroraCyan.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+        border = BorderStroke(
+            1.dp,
+            if (accent) AuroraCyan.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+        ),
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (accent) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(AuroraCyan)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(BrandCherry)
+                )
+            }
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
+}
+
+private fun countryFlag(name: String): String = when (name.lowercase()) {
+    "hàn quốc" -> "🇰🇷"
+    "nhật bản", "nhat ban" -> "🇯🇵"
+    "trung quốc", "trung quoc" -> "🇨🇳"
+    "âu mỹ", "au my", "mỹ", "my" -> "🇺🇸"
+    "việt nam", "viet nam" -> "🇻🇳"
+    "thái lan", "thai lan" -> "🇹🇭"
+    "anh" -> "🇬🇧"
+    else -> "🌍"
 }

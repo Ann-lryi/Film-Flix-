@@ -1,6 +1,8 @@
 package com.nguonc.stream.ui.library
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,26 +28,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -61,8 +66,14 @@ import com.nguonc.stream.data.local.HistoryEntity
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.ui.components.EmptyBox
 import com.nguonc.stream.ui.components.MoviePosterCard
-import com.nguonc.stream.ui.theme.AccentViolet
-import com.nguonc.stream.ui.theme.Primary
+import com.nguonc.stream.ui.theme.Aurora
+import com.nguonc.stream.ui.theme.AuroraViolet
+import com.nguonc.stream.ui.theme.BrandCherry
+import com.nguonc.stream.ui.theme.BrandCherryDeep
+import com.nguonc.stream.ui.theme.BrandCherrySoft
+import com.nguonc.stream.ui.theme.OnDarkSurfaceVariant
+import com.nguonc.stream.ui.theme.SunAmber
+import com.nguonc.stream.ui.theme.SunGold
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,91 +88,192 @@ fun LibraryScreen(
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
     ) {
-        // Premium header
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text(
-                text = "Bộ sưu tập",
-                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "Phim yêu thích & lịch sử xem của bạn",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(16.dp))
+        // Ambient
+        Box(
+            modifier = Modifier
+                .size(320.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 100.dp, y = (-60).dp)
+                .drawBehind {
+                    drawCircle(brush = Aurora.AmbientCherry, radius = 340.dp.toPx())
+                }
+        )
 
-            // Segmented control - pill style
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                SegmentTab(
-                    selected = selectedTab == 0,
-                    icon = Icons.Filled.Favorite,
-                    text = "Yêu thích (${favorites.size})",
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 0 }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
+            // Header
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(100.dp),
+                        color = SunGold.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, SunGold.copy(alpha = 0.32f))
+                    ) {
+                        Text(
+                            "CỦA TÔI",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 1.5.sp
+                            ),
+                            color = SunAmber,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .height(1.dp)
+                            .width(60.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.16f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = "Bộ sưu tập",
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = (-0.6).sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                SegmentTab(
-                    selected = selectedTab == 1,
-                    icon = Icons.Filled.History,
-                    text = "Lịch sử (${history.size})",
-                    modifier = Modifier.weight(1f),
-                    onClick = { selectedTab = 1 }
+                Text(
+                    text = "Phim yêu thích & lịch sử xem của bạn",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnDarkSurfaceVariant
+                )
+                Spacer(Modifier.height(20.dp))
+
+                AuroraSegmentedControl(
+                    selected = selectedTab,
+                    onSelect = { selectedTab = it },
+                    favoriteCount = favorites.size,
+                    historyCount = history.size,
+                )
+            }
+
+            when (selectedTab) {
+                0 -> FavoriteTab(favorites = favorites, onMovieClick = onMovieClick)
+                else -> HistoryTab(
+                    history = history,
+                    onResumeClick = onResumeClick,
+                    onMovieClick = onMovieClick,
+                    onRemove = viewModel::removeHistory,
                 )
             }
         }
+    }
+}
 
-        when (selectedTab) {
-            0 -> FavoriteTab(favorites = favorites, onMovieClick = onMovieClick)
-            else -> HistoryTab(
-                history = history,
-                onResumeClick = onResumeClick,
-                onMovieClick = onMovieClick,
-                onRemove = viewModel::removeHistory,
+@Composable
+private fun AuroraSegmentedControl(
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    favoriteCount: Int,
+    historyCount: Int,
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(6.dp, RoundedCornerShape(18.dp), ambientColor = Color.Black.copy(alpha = 0.4f))
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            SegmentTab(
+                selected = selected == 0,
+                icon = Icons.Filled.Favorite,
+                text = "Yêu thích",
+                count = favoriteCount,
+                modifier = Modifier.weight(1f),
+                onClick = { onSelect(0) }
+            )
+            SegmentTab(
+                selected = selected == 1,
+                icon = Icons.Filled.History,
+                text = "Lịch sử",
+                count = historyCount,
+                modifier = Modifier.weight(1f),
+                onClick = { onSelect(1) }
             )
         }
     }
 }
 
 @Composable
-private fun SegmentTab(selected: Boolean, icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, modifier: Modifier, onClick: () -> Unit) {
+private fun SegmentTab(
+    selected: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    count: Int,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1.1f else 1f,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "segScale"
+    )
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) Color.White else Color.Transparent,
-        shadowElevation = if (selected) 4.dp else 0.dp,
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) BrandCherry else Color.Transparent,
+        shadowElevation = if (selected) 8.dp else 0.dp,
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(vertical = 10.dp),
+            modifier = Modifier.padding(vertical = 11.dp),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (selected) Primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(16.dp)
+                    .scale(iconScale)
             )
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(7.dp))
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-                color = if (selected) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                ),
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(Modifier.width(6.dp))
+            Surface(
+                shape = CircleShape,
+                color = if (selected) Color.White.copy(alpha = 0.22f)
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                modifier = Modifier
+            ) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Black),
+                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                )
+            }
         }
     }
 }
@@ -213,7 +325,7 @@ private fun HistoryTab(
     }
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(history, key = { it.slug }) { item ->
@@ -235,13 +347,16 @@ private fun HistoryRow(
     onRemove: () -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .shadow(8.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black.copy(alpha = 0.4f))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -253,23 +368,31 @@ private fun HistoryRow(
                     model = item.posterUrl,
                     contentDescription = item.name,
                     modifier = Modifier
-                        .size(width = 72.dp, height = 96.dp)
+                        .size(width = 76.dp, height = 102.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .background(MaterialTheme.colorScheme.surface),
                     contentScale = ContentScale.Crop,
                 )
-                // Play badge on poster
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.6f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                // Play badge overlay
+                Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .size(28.dp)
+                        .size(34.dp)
+                        .shadow(10.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.6f))
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .border(
+                            BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.PlayArrow, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    }
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
             Spacer(Modifier.width(14.dp))
@@ -277,23 +400,31 @@ private fun HistoryRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.1).sp
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Surface(
-                        color = Primary.copy(alpha = 0.14f),
+                        color = BrandCherry.copy(alpha = 0.16f),
                         shape = RoundedCornerShape(6.dp),
-                        border = BorderStroke(0.5.dp, Primary.copy(alpha = 0.2f))
+                        border = BorderStroke(0.5.dp, BrandCherry.copy(alpha = 0.3f))
                     ) {
                         Text(
                             text = item.episodeName,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Primary,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Black
+                            ),
+                            color = BrandCherry,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
                         )
                     }
                     Text(
@@ -311,16 +442,16 @@ private fun HistoryRow(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(5.dp)
+                        .height(4.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(progress)
-                            .height(5.dp)
+                            .height(4.dp)
                             .clip(CircleShape)
-                            .background(Brush.horizontalGradient(listOf(Primary, Primary.copy(alpha = 0.8f))))
+                            .background(Aurora.BrandLinear)
                     )
                 }
 
@@ -334,21 +465,31 @@ private fun HistoryRow(
 
             Spacer(Modifier.width(8.dp))
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Primary,
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.Transparent,
                     modifier = Modifier
-                        .size(44.dp)
-                        .shadow(8.dp, RoundedCornerShape(12.dp), ambientColor = Primary.copy(alpha = 0.5f))
+                        .size(46.dp)
+                        .shadow(10.dp, RoundedCornerShape(14.dp), ambientColor = BrandCherry.copy(alpha = 0.55f))
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Aurora.BrandLinear)
                         .clickable(onClick = onResume)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "Xem tiếp", tint = Color.White, modifier = Modifier.size(22.dp))
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = "Xem tiếp",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
 
-                IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(28.dp)) {
                     Icon(
                         Icons.Filled.DeleteOutline,
                         contentDescription = "Xoá",

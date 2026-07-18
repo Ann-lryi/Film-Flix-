@@ -15,80 +15,80 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-// Premium Shapes - consistent 20dp language
+/**
+ * FILM FLIX 3.0 — Aurora Theme
+ * - True OLED black với 9 cấp surface
+ * - Edge-to-edge, status & nav bar trong suốt
+ * - Brand cherry dùng làm điểm nhấn, ánh vàng champagne cho rating
+ */
+
 private val PremiumShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(22.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Primary,
+    primary = BrandCherry,
     onPrimary = Color.White,
-    primaryContainer = PrimaryContainer,
-    onPrimaryContainer = OnPrimaryContainer,
-    secondary = Secondary,
+    primaryContainer = BrandCherryInk,
+    onPrimaryContainer = BrandCherryLight,
+    secondary = SunGold,
     onSecondary = Color.Black,
-    secondaryContainer = SecondaryContainer,
-    onSecondaryContainer = Color(0xFFFFE082),
-    tertiary = AccentCyan,
+    secondaryContainer = Color(0xFF2B2310),
+    onSecondaryContainer = SunCream,
+    tertiary = AuroraCyan,
     onTertiary = Color.Black,
-    tertiaryContainer = Color(0xFF122629),
+    tertiaryContainer = Color(0xFF0B2326),
     onTertiaryContainer = Color(0xFFB6F5FF),
-    error = Error,
+    error = StatusDanger,
     onError = Color.White,
-    errorContainer = Color(0xFF3A0A12),
+    errorContainer = Color(0xFF2A050D),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = DarkBackground,
-    onBackground = OnDarkBackground,
-    surface = DarkSurface,
-    onSurface = OnDarkSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    onSurfaceVariant = OnDarkSurfaceVariant,
-    surfaceDim = DarkBackground,
-    surfaceBright = DarkSurfaceElevated,
-    surfaceContainer = DarkSurface,
-    surfaceContainerHigh = DarkSurfaceAlt,
-    surfaceContainerHighest = DarkSurfaceElevated,
-    surfaceContainerLow = DarkBackgroundSoft,
-    surfaceContainerLowest = DarkBackground,
-    outline = DarkOutline,
-    outlineVariant = DarkOutlineVariant,
-    scrim = Color.Black.copy(alpha = 0.65f),
+    background = OLED1,
+    onBackground = Ink90,
+    surface = OLED3,
+    onSurface = Ink80,
+    surfaceVariant = OLED5,
+    onSurfaceVariant = Ink60,
+    surfaceDim = OLED0,
+    surfaceBright = OLED6,
+    surfaceContainer = OLED3,
+    surfaceContainerHigh = OLED4,
+    surfaceContainerHighest = OLED6,
+    surfaceContainerLow = OLED2,
+    surfaceContainerLowest = OLED0,
+    outline = OLED8,
+    outlineVariant = Color(0xFF3A3D52),
+    scrim = Color.Black.copy(alpha = 0.7f),
     inverseSurface = Color(0xFFE8E9F0),
     inverseOnSurface = Color(0xFF11111A),
-    inversePrimary = PrimaryDark
+    inversePrimary = BrandCherrySoft
 )
 
 private val LightColors = lightColorScheme(
-    primary = Primary,
+    primary = BrandCherry,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFFFDAD6),
+    primaryContainer = Color(0xFFFFD9DE),
     onPrimaryContainer = Color(0xFF410002),
     secondary = Color(0xFFB89600),
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFFFECB3),
     onSecondaryContainer = Color(0xFF261A00),
-    tertiary = Color(0xFF00B8D4),
+    tertiary = AuroraCyan,
     onTertiary = Color.White,
-    background = LightBackground,
-    onBackground = OnLightBackground,
-    surface = LightSurface,
-    onSurface = OnLightSurface,
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = OnLightSurfaceVariant,
-    outline = LightOutline,
-    outlineVariant = LightOutlineVariant,
+    background = Paper1,
+    onBackground = PaperInk,
+    surface = Paper0,
+    onSurface = Color(0xFF181A22),
+    surfaceVariant = Paper2,
+    onSurfaceVariant = Color(0xFF6A6E8A),
+    outline = Paper3,
+    outlineVariant = Color(0xFFC9CCD8)
 )
 
-/**
- * FilmFlix Premium 2.0 Theme
- * - True OLED dark with layered surfaces
- * - Edge-to-edge with transparent system bars
- * - Premium shapes & motion ready
- */
 @Composable
 fun NguonCTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -120,7 +120,6 @@ fun NguonCTheme(
     )
 }
 
-// Alias for new naming
 @Composable
 fun FilmFlixTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
