@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Theme khởi động; Compose tự quản màu sắc dark/light theo hệ thống -->
-    <style name="Theme.NguonCStream" parent="android:Theme.Material.NoActionBar">
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Theme nền hệ thống dùng trước khi Compose setContent chạy. Nền đen khớp theme trong app
+         để tránh flash trắng lúc khởi động (splash tối giản kiểu app xem phim Trung Quốc). -->
+    <style name="Theme.YunPhim" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
         <item name="android:statusBarColor">@android:color/black</item>
         <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
 </resources>

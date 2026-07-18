@@ -1,0 +1,279 @@
+package com.aho.yunphim.ui.player
+
+import android.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
+
+/**
+ * Cổng phát video cho embed streamc.xyz (và domain CDN cùng họ) của phim.nguonc.com.
+ *
+ * Port từ luồng "NEW WORKING FLOW" đã được Aho reverse-engineer 06/2026 trong plugin CloudStream
+ * NguonC ĐANG CHẠY THẬT - không phải suy đoán:
+ *   B1: fetch HTML trang embed, tìm token trong thuộc tính data-obf (field JSON "sUb")
+ *   B2: POST {embedDomain}/{token}  ->  {"ok":true,"xat":"<64 hex>"}
+ *   B3: GET  {embedDomain}/{token}.m3u9?xat={xat}  ->  playlist M3U8 KHÔNG mã hoá
+ *   B4: chạy 1 proxy HTTP cục bộ (127.0.0.1) phát lại playlist; mỗi segment được proxy fetch lại
+ *       kèm đúng header Referer=embedUrl - né việc ExoPlayer khó gắn header riêng từng segment,
+ *       đồng thời "tẩy" đuôi file lạ (segment CDN site này từng dùng đuôi .png) vì proxy luôn trả
+ *       Content-Type: video/mp2t bất kể đuôi gốc của URL nguồn.
+ *
+ * KHÔNG PORT: nhánh giải mã AES-GCM cũ (kX/data-obf/token dò nhiều key ứng viên) - plugin gốc ghi
+ * rõ đây là nhánh "legacy fallback", luồng B1-B4 ở trên đã thay thế và không cần giải mã nữa.
+ * Nếu B1-B4 fail (site đổi cơ chế xác thực), PlayerViewModel tự rơi về WebViewStreamResolver.
+ *
+ * CHƯA TEST trên thiết bị thật.
+ */
+class StreamcResolver(private val httpClient: OkHttpClient) {
+
+    companion object {
+        private val FAMILY_REGEX = Regex(
+            """streamc\.xyz|amass\d+\.top|hihihoho\d+\.top|phimmoi\.net|seouls\d+\.amass\d+\.top""",
+        )
+
+        /** true nếu URL thuộc họ domain streamc.xyz - cần luồng token thay vì phát thẳng. */
+        fun isStreamcFamily(url: String): Boolean = FAMILY_REGEX.containsMatchIn(url)
+    }
+
+    @Serializable
+    private data class AccessResponse(val ok: Boolean? = null, val xat: String? = null)
+
+    private val json = Json { ignoreUnknownKeys = true }
+    private val activeProxies = CopyOnWriteArrayList<LocalM3u8Proxy>()
+
+    /** Trả về URL playlist local (http://127.0.0.1:port/stream.m3u8) sẵn sàng đưa vào ExoPlayer, hoặc null nếu fail. */
+    suspend fun resolve(embedUrl: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val fixedUrl = fixKnownDeadHost(embedUrl)
+            val embedDomain = Regex("""(https?://embed\d+\.streamc\.xyz)""").find(fixedUrl)?.groupValues?.getOrNull(1)
+                ?: Regex("""(https?://[^/]+)""").find(fixedUrl)?.groupValues?.getOrNull(1)
+                ?: return@withContext null
+
+            val html = fetchHtml(fixedUrl) ?: return@withContext null
+            val token = extractToken(html) ?: return@withContext null
+            val xat = confirmAccess(embedDomain, token, fixedUrl) ?: return@withContext null
+            val playlist = fetchPlaylist(embedDomain, token, xat, fixedUrl) ?: return@withContext null
+
+            val proxy = LocalM3u8Proxy(referer = fixedUrl, httpClient = httpClient)
+            proxy.start()
+            activeProxies.add(proxy)
+            proxy.setPlaylist(rewriteSegmentUrls(playlist, proxy.base))
+            "${proxy.base}/stream.m3u8"
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Gọi khi rời màn hình player / đổi tập - dừng hết proxy cục bộ đang chạy nền. */
+    fun stopActiveProxies() {
+        activeProxies.forEach { it.stop() }
+        activeProxies.clear()
+    }
+
+    /** sing.phimmoi.net là domain đã chết theo ghi chú trong plugin gốc - quy đổi về embed15.streamc.xyz. */
+    private fun fixKnownDeadHost(url: String): String {
+        if (!url.contains("sing.phimmoi.net")) return url
+        val hash = Regex("""/([^/]+)/hls\.m3u8""").find(url)?.groupValues?.getOrNull(1) ?: return url
+        return "https://embed15.streamc.xyz/embed.php?hash=$hash"
+    }
+
+    private fun fetchHtml(url: String): String? {
+        val request = Request.Builder().url(url)
+            .header("Referer", "https://phim.nguonc.com/")
+            .build()
+        return httpClient.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) null else resp.body?.string()
+        }
+    }
+
+    /** Ưu tiên field "sUb" trong data-obf (base64 JSON) - fallback dò token trực tiếp trong HTML. */
+    private fun extractToken(html: String): String? {
+        val obfRaw = Regex("""data-obf=["']([^"']+)["']""").find(html)?.groupValues?.getOrNull(1)
+        if (obfRaw != null) {
+            for (decoded in decodeBase64Variants(obfRaw)) {
+                val sub = Regex(""""sUb"\s*:\s*"([^"]+)"""").find(decoded)?.groupValues?.getOrNull(1)
+                if (!sub.isNullOrBlank()) return sub
+            }
+        }
+        val jwPlayerFile = Regex(""""file"\s*:\s*"([A-Za-z0-9_+/=-]+)\.(?:m3u8|m3u9)"""").find(html)
+        if (jwPlayerFile != null) return jwPlayerFile.groupValues[1]
+        val anyTokenPath = Regex("""/([A-Za-z0-9_+/=-]{20,})\.(?:m3u8|m3u9)""").find(html)
+        return anyTokenPath?.groupValues?.getOrNull(1)
+    }
+
+    private fun decodeBase64Variants(raw: String): List<String> {
+        val results = mutableListOf<String>()
+        val flagSets = listOf(Base64.DEFAULT, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        for (flags in flagSets) {
+            try {
+                results.add(String(Base64.decode(raw, flags), Charsets.UTF_8))
+            } catch (_: Exception) {
+                // thử flag tiếp theo
+            }
+        }
+        return results
+    }
+
+    /** B2: POST /{token} -> {"ok":true,"xat":"..."}. */
+    private fun confirmAccess(embedDomain: String, token: String, refererUrl: String): String? {
+        val request = Request.Builder()
+            .url("$embedDomain/$token")
+            .header("Referer", refererUrl)
+            .header("Origin", embedDomain)
+            .header("Accept", "application/json, text/plain, */*")
+            .post("".toRequestBody("application/json".toMediaType()))
+            .build()
+        return httpClient.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) return null
+            val body = resp.body?.string() ?: return null
+            runCatching { json.decodeFromString<AccessResponse>(body) }.getOrNull()?.xat
+        }
+    }
+
+    /** B3: thử .m3u9 (mobile, không mã hoá) trước, .m3u8 (desktop) sau nếu .m3u9 fail. */
+    private fun fetchPlaylist(embedDomain: String, token: String, xat: String, refererUrl: String): String? {
+        for (ext in listOf("m3u9", "m3u8")) {
+            val url = "$embedDomain/$token.$ext?xat=$xat"
+            val content = fetchPlaylistOnce(url, refererUrl, embedDomain) ?: continue
+            if (content.contains("#EXTM3U") && !content.contains("#ENC-AESGCM")) return content
+        }
+        return null
+    }
+
+    private fun fetchPlaylistOnce(url: String, refererUrl: String, embedDomain: String): String? {
+        val request = Request.Builder().url(url)
+            .header("Referer", refererUrl)
+            .header("Origin", embedDomain)
+            .header("Accept", "*/*")
+            .build()
+        return httpClient.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) null else resp.body?.string()
+        }
+    }
+
+    private fun rewriteSegmentUrls(m3u8: String, proxyBase: String): String {
+        return m3u8.lines().joinToString("\n") { line ->
+            val trimmed = line.trim()
+            if (trimmed.startsWith("http")) {
+                "$proxyBase/seg/${URLEncoder.encode(trimmed, "UTF-8")}"
+            } else {
+                line
+            }
+        }
+    }
+}
+
+/** Proxy HTTP cục bộ trên 127.0.0.1 - phát lại playlist + fetch từng segment kèm đúng Referer. */
+private class LocalM3u8Proxy(
+    private val referer: String,
+    private val httpClient: OkHttpClient,
+) {
+    private var serverSocket: ServerSocket? = null
+    private val threadPool = Executors.newCachedThreadPool()
+
+    @Volatile private var playlist: String = ""
+
+    val base: String get() = "http://127.0.0.1:${serverSocket?.localPort ?: 0}"
+
+    fun setPlaylist(content: String) {
+        playlist = content
+    }
+
+    fun start() {
+        val socket = ServerSocket(0)
+        serverSocket = socket
+        Thread {
+            while (!socket.isClosed) {
+                try {
+                    val client = socket.accept()
+                    threadPool.execute { handle(client) }
+                } catch (_: Exception) {
+                    break
+                }
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    private fun handle(client: Socket) {
+        try {
+            val input = client.getInputStream().bufferedReader()
+            val output = client.getOutputStream()
+            val requestLine = input.readLine() ?: return
+            while (true) {
+                val line = input.readLine() ?: break
+                if (line.isBlank()) break
+            }
+            val path = requestLine.split(" ").getOrNull(1) ?: "/"
+            val crlf = "\r\n"
+            when {
+                path == "/stream.m3u8" -> {
+                    val body = playlist.toByteArray(Charsets.UTF_8)
+                    output.write(
+                        (
+                            "HTTP/1.1 200 OK$crlf" +
+                                "Content-Type: application/vnd.apple.mpegurl$crlf" +
+                                "Content-Length: ${body.size}$crlf" +
+                                "Access-Control-Allow-Origin: *$crlf$crlf"
+                            ).toByteArray(),
+                    )
+                    output.write(body)
+                }
+
+                path.startsWith("/seg/") -> {
+                    val segUrl = URLDecoder.decode(path.removePrefix("/seg/"), "UTF-8")
+                    try {
+                        val request = Request.Builder().url(segUrl).header("Referer", referer).build()
+                        httpClient.newCall(request).execute().use { resp ->
+                            val bytes = resp.body?.bytes() ?: ByteArray(0)
+                            output.write(
+                                (
+                                    "HTTP/1.1 200 OK$crlf" +
+                                        "Content-Type: video/mp2t$crlf" +
+                                        "Content-Length: ${bytes.size}$crlf" +
+                                        "Access-Control-Allow-Origin: *$crlf$crlf"
+                                    ).toByteArray(),
+                            )
+                            output.write(bytes)
+                        }
+                    } catch (_: Exception) {
+                        output.write("HTTP/1.1 502 Bad Gateway$crlf$crlf".toByteArray())
+                    }
+                }
+
+                else -> output.write("HTTP/1.1 404 Not Found$crlf$crlf".toByteArray())
+            }
+            output.flush()
+            client.close()
+        } catch (_: Exception) {
+            try {
+                client.close()
+            } catch (_: Exception) {
+                // đã đóng rồi, bỏ qua
+            }
+        }
+    }
+
+    fun stop() {
+        try {
+            serverSocket?.close()
+        } catch (_: Exception) {
+            // đã đóng rồi, bỏ qua
+        }
+        try {
+            threadPool.shutdownNow()
+        } catch (_: Exception) {
+            // đã tắt rồi, bỏ qua
+        }
+    }
+}
