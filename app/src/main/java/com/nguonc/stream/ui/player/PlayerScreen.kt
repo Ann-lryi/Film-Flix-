@@ -1526,26 +1526,64 @@ private fun EmbedWebViewPlayer(
     isLocked: Boolean,
     onToggleControls: () -> Unit,
 ) {
+    // Remember the loaded URL to avoid reload on every recomposition
+    var loadedUrl by remember { mutableStateOf("") }
+
     AndroidView(
         factory = { ctx ->
             android.webkit.WebView(ctx).apply {
+                // ---- WebSettings cho video playback ----
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
+                settings.databaseEnabled = true
                 settings.allowFileAccess = true
+                settings.allowContentAccess = true
                 settings.mediaPlaybackRequiresUserGesture = false
-                settings.userAgentString = settings.userAgentString + " FilmFlix/1.0"
-                webViewClient = android.webkit.WebViewClient()
-                // Bật fullscreen cho video trong WebView
+                // Mixed content: cho phép load HTTP resources từ HTTPS page
+                // (JW player stream có thể trả HTTP)
+                settings.mixedContentMode =
+                    android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                // Proper viewport sizing cho player
+                settings.loadWithOverviewMode = true
+                settings.useWideViewPort = true
+                // Cache mode
+                settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+                // User-Agent: dùng Chrome desktop để embed server không block
+                settings.userAgentString =
+                    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
+                        "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+
+                // ---- Clients ----
+                webViewClient = object : android.webkit.WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: android.webkit.WebView?,
+                        request: android.webkit.WebResourceRequest?,
+                    ): Boolean = false
+                }
                 webChromeClient = object : android.webkit.WebChromeClient() {}
+
                 setBackgroundColor(android.graphics.Color.BLACK)
+                isHorizontalScrollBarEnabled = false
+                isVerticalScrollBarEnabled = false
+
+                // Load với Referer header — embed server (streamc.xyz) kiểm tra referer
                 if (embedUrl.isNotBlank()) {
-                    loadUrl(embedUrl)
+                    val headers = mapOf(
+                        "Referer" to "https://phim.nguonc.com/",
+                    )
+                    loadUrl(embedUrl, headers)
+                    loadedUrl = embedUrl
                 }
             }
         },
         update = { webview ->
-            if (embedUrl.isNotBlank() && webview.url != embedUrl) {
-                webview.loadUrl(embedUrl)
+            // Chỉ reload khi URL thực sự thay đổi (không reload khi recompose)
+            if (embedUrl.isNotBlank() && embedUrl != loadedUrl) {
+                val headers = mapOf(
+                    "Referer" to "https://phim.nguonc.com/",
+                )
+                webview.loadUrl(embedUrl, headers)
+                loadedUrl = embedUrl
             }
         },
         modifier = Modifier
