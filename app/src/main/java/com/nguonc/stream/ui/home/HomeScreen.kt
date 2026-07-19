@@ -32,10 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,12 +125,6 @@ fun HomeScreen(
                     } else {
                         // Hero skeleton
                         item { ShimmerHero() }
-                    }
-
-                    item {
-                        QuickFilterRow(
-                            onSelect = { type, title -> onSeeMore(type, title) }
-                        )
                     }
 
                     items(state.sections, key = { it.listType }) { section ->
@@ -298,87 +289,10 @@ private fun PremiumHomeTopBar(onSearchClick: () -> Unit) {
     }
 }
 
-/**
- * Quick filter chips — stateful, calls onSeeMore with the appropriate list type.
- */
-@Composable
-private fun QuickFilterRow(onSelect: (listType: String, title: String) -> Unit) {
-    data class Filter(val label: String, val icon: ImageVector, val listType: String, val title: String)
-
-    val filters = remember {
-        listOf(
-            Filter("Phim mới", FilmFlixIcons.FlameFilled, "phim-moi-cap-nhat", "Phim mới cập nhật"),
-            Filter("Phim lẻ", FilmFlixIcons.DiamondOutline, "phim-le", "Phim lẻ"),
-            Filter("Phim bộ", FilmFlixIcons.PlayFilled, "phim-bo", "Phim bộ"),
-            Filter("Hoạt hình", FilmFlixIcons.BoltFilled, "hoat-hinh", "Hoạt hình"),
-        )
-    }
-    var selectedIndex by rememberSaveable { mutableStateOf(0) }
-
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(filters.size) { i ->
-            val filter = filters[i]
-            val selected = i == selectedIndex
-            val interaction = remember { MutableInteractionSource() }
-
-            Surface(
-                shape = AppShapes.Pill,
-                color = if (selected) Primary else MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (selected) Primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier
-                    .clip(AppShapes.Pill)
-                    .clickable(interactionSource = interaction, indication = null) {
-                        selectedIndex = i
-                        onSelect(filter.listType, filter.title)
-                    }
-                    .then(
-                        if (selected) Modifier.glowShadow(
-                            color = Primary,
-                            shape = AppShapes.Pill,
-                            glowRadius = 10.dp,
-                            elevation = Elevation.XS
-                        ) else Modifier
-                    )
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        filter.icon, null,
-                        tint = if (selected) Color.White else Primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = filter.label,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}
-
 // Avoids extra import in the function above
 private typealias ImageVector = androidx.compose.ui.graphics.vector.ImageVector
 
-private fun mapTitle(original: String): String {
-    return when {
-        original.contains("mới", true) -> "Mới cập nhật"
-        original.contains("bộ", true) -> "Phim bộ hot"
-        original.contains("lẻ", true) -> "Phim lẻ đặc sắc"
-        original.contains("hoạt hình", true) -> "Hoạt hình đỉnh cao"
-        else -> original
-    }
-}
+private fun mapTitle(original: String): String = original
 
 private fun mapSubtitle(type: String): String {
     return when (type) {

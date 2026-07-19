@@ -175,7 +175,7 @@ fun MoviePosterCard(
                         .background(AppGradients.CardBottomOverlay)
                 )
 
-                // Top badges row
+                // Top badges row — only quality badge (MỚI removed per user request)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -186,9 +186,6 @@ fun MoviePosterCard(
                 ) {
                     movie.quality?.takeIf { it.isNotBlank() }?.let {
                         PremiumQualityBadge(text = it.uppercase())
-                    }
-                    if (movie.year >= 2024) {
-                        NewBadge()
                     }
                 }
 
