@@ -1639,21 +1639,10 @@ private fun EmbedWebViewPlayer(
                     override fun onReceivedSslError(
                         view: android.webkit.WebView?,
                         handler: android.webkit.SslErrorHandler?,
-                        error: android.net.SslError?,
+                        error: android.net.http.SslError?,
                     ) {
                         // Bypass SSL errors cho player server (self-signed certs)
                         handler?.proceed()
-                    }
-
-                    override fun onConsoleMessage(
-                        consoleMessage: android.webkit.ConsoleMessage?,
-                    ): Boolean {
-                        android.util.Log.d(
-                            "EmbedWebView",
-                            "JS: ${consoleMessage?.message()} " +
-                                "(${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()})"
-                        )
-                        return true
                     }
 
                     override fun onReceivedError(
