@@ -1558,83 +1558,12 @@ private fun EmbedWebViewPlayer(
                 // Hardware accelerated layer cho smooth video
                 setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
 
-                // ---- WebViewClient: inject Referer cho tất cả requests ----
+                // ---- WebViewClient: không intercept, chỉ log + bypass SSL ----
                 webViewClient = object : android.webkit.WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView?,
                         request: android.webkit.WebResourceRequest?,
                     ): Boolean = false
-
-                    override fun shouldInterceptRequest(
-                        view: android.webkit.WebView?,
-                        request: android.webkit.WebResourceRequest?,
-                    ): android.webkit.WebResourceResponse? {
-                        val url = request?.url?.toString() ?: return null
-                        // Chỉ intercept các video stream URL (m3u8/mp4/ts từ CDN),
-                        // để trang HTML/JS/CSS đi qua WebView bình thường.
-                        val isVideoStream = url.contains(".m3u8") ||
-                            url.contains(".mp4") ||
-                            url.contains(".ts") ||
-                            url.contains("phim1280.tv") ||
-                            url.contains("kkphimplayer")
-                        if (!isVideoStream) return null
-                        if (!url.startsWith("http")) return null
-                        try {
-                            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                            connection.requestMethod = request.method ?: "GET"
-                            connection.connectTimeout = 15_000
-                            connection.readTimeout = 30_000
-                            connection.instanceFollowRedirects = true
-                            // Copy headers từ request gốc
-                            request.requestHeaders?.forEach { (k, v) ->
-                                if (!k.equals("Referer", true) && !k.equals("Host", true)) {
-                                    connection.setRequestProperty(k, v)
-                                }
-                            }
-                            // Set Referer — streamc.xyz & phim1280.tv check referer
-                            connection.setRequestProperty(
-                                "Referer",
-                                "https://phim.nguonc.com/",
-                            )
-                            connection.setRequestProperty(
-                                "User-Agent",
-                                "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
-                                    "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
-                            )
-
-                            val contentType = connection.contentType ?: "application/octet-stream"
-                            val mimeType = contentType.split(";").firstOrNull()?.trim()
-                                ?: "application/octet-stream"
-                            val encoding = if (contentType.contains("charset=", true)) {
-                                contentType.substringAfter("charset=").trim()
-                            } else "UTF-8"
-
-                            val statusCode = connection.responseCode
-                            val reasonPhrase = connection.responseMessage ?: "OK"
-                            val responseHeaders = mutableMapOf<String, String>()
-                            for ((k, v) in connection.headerFields) {
-                                if (v.isNotEmpty()) responseHeaders[k] = v.joinToString(", ")
-                            }
-
-                            val inputStream = if (statusCode in 200..299) {
-                                connection.inputStream
-                            } else {
-                                connection.errorStream ?: return null
-                            }
-
-                            return android.webkit.WebResourceResponse(
-                                mimeType,
-                                encoding,
-                                statusCode,
-                                reasonPhrase,
-                                responseHeaders,
-                                inputStream,
-                            )
-                        } catch (e: Exception) {
-                            android.util.Log.e("EmbedWebView", "Intercept error for $url: ${e.message}")
-                            return null
-                        }
-                    }
 
                     override fun onReceivedSslError(
                         view: android.webkit.WebView?,
@@ -1656,6 +1585,52 @@ private fun EmbedWebViewPlayer(
                         )
                         super.onReceivedError(view, request, error)
                     }
+
+                    override fun onPageFinished(
+                        view: android.webkit.WebView?,
+                        url: String?,
+                    ) {
+                        super.onPageFinished(view, url)
+                        android.util.Log.d("EmbedWebView", "Page loaded: $url")
+                        // Inject JS để auto-play sau khi JW player init xong
+                        // JW player thường cần tap để play do autoplay policy,
+                        // ta cố gắng trigger play() qua JS.
+                        view?.evaluateJavascript(
+                            """
+                            (function() {
+                                // Chờ JW player sẵn sàng rồi play
+                                var attempts = 0;
+                                var interval = setInterval(function() {
+                                    attempts++;
+                                    try {
+                                        if (typeof jwplayer !== 'undefined') {
+                                            var p = jwplayer('player');
+                                            if (p && typeof p.play === 'function') {
+                                                p.play();
+                                                clearInterval(interval);
+                                                console.log('JW player play() called');
+                                            }
+                                        }
+                                    } catch(e) { console.log('JW play attempt error: ' + e); }
+                                    if (attempts > 30) {
+                                        clearInterval(interval);
+                                        console.log('JW player not found after 15s');
+                                    }
+                                }, 500);
+                                // Also try HTML5 video element
+                                setTimeout(function() {
+                                    var videos = document.querySelectorAll('video');
+                                    videos.forEach(function(v) {
+                                        v.play().catch(function(e) {
+                                            console.log('HTML5 video play failed: ' + e);
+                                        });
+                                    });
+                                }, 2000);
+                            })();
+                            """.trimIndent(),
+                            null,
+                        )
+                    }
                 }
 
                 webChromeClient = object : android.webkit.WebChromeClient() {
@@ -1667,6 +1642,14 @@ private fun EmbedWebViewPlayer(
                             "Chrome JS: ${consoleMessage?.message()}"
                         )
                         return true
+                    }
+
+                    override fun onProgressChanged(
+                        view: android.webkit.WebView?,
+                        newProgress: Int,
+                    ) {
+                        android.util.Log.d("EmbedWebView", "Page progress: $newProgress%")
+                        super.onProgressChanged(view, newProgress)
                     }
                 }
 
