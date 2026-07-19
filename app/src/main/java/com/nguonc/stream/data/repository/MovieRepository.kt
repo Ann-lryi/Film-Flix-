@@ -71,7 +71,14 @@ class MovieRepository @Inject constructor(
         val res = api.getMovieDetail(slug)
         MovieDetailBundle(
             movie = res.movie.normalizeImage(),
-            episodes = res.episodes.filter { it.serverData.isNotEmpty() },
+            // Chỉ giữ server có ít nhất 1 tập có link m3u8 hợp lệ.
+            // Điều này đảm bảo Detail và Player thấy cùng một danh sách server,
+            // tránh lệch index khi user chọn server.
+            episodes = res.episodes
+                .map { srv ->
+                    srv.copy(serverData = srv.serverData.filter { it.linkM3u8.isNotBlank() })
+                }
+                .filter { it.serverData.isNotEmpty() },
         )
     }
 

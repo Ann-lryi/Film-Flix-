@@ -149,16 +149,16 @@ class PlayerViewModel @Inject constructor(
             runCatching {
                 val detail = repository.getMovieDetail(slug)
                 val history = repository.getHistory(slug)
-                Triple(detail, history, detail.episodes)
-            }.onSuccess { (detail, history, rawServers) ->
-                // Lọc các server có dữ liệu + có link m3u8 hợp lệ
-                val servers: List<ServerGroup> = rawServers
-                    .filter { it.serverData.any { ep -> ep.linkM3u8.isNotBlank() } }
+                detail to history
+            }.onSuccess { (detail, history) ->
+                // Repository đã lọc các server không có link m3u8 hợp lệ.
+                // Detail và Player dùng cùng một danh sách server, index khớp 1:1.
+                val servers: List<ServerGroup> = detail.episodes
                     .mapIndexed { idx, srv ->
                         ServerGroup(
                             index = idx,
                             name = srv.serverName.ifBlank { "Server ${idx + 1}" },
-                            episodes = srv.serverData.filter { it.linkM3u8.isNotBlank() }
+                            episodes = srv.serverData
                         )
                     }
 
@@ -169,13 +169,8 @@ class PlayerViewModel @Inject constructor(
                     return@onSuccess
                 }
 
-                // Chọn server theo requestedServer hoặc theo history hoặc mặc định server đầu
-                val historyServerName: String? = null // API không lưu server trong history
-                val targetServerIdx = servers.indexOfFirst { it.index == requestedServer }
-                    .takeIf { it >= 0 }
-                    ?: servers.indexOfFirst { it.name.equals(historyServerName, true) }
-                        .takeIf { it >= 0 }
-                    ?: 0
+                // Chọn server theo requestedServer, clamp vào khoảng hợp lệ
+                val targetServerIdx = requestedServer.coerceIn(0, servers.lastIndex)
                 val server = servers[targetServerIdx]
 
                 // Chọn tập: theo requestedEpisode → history → đầu

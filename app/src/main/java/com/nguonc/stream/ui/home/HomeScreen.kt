@@ -307,11 +307,10 @@ private fun QuickFilterRow(onSelect: (listType: String, title: String) -> Unit) 
 
     val filters = remember {
         listOf(
-            Filter("Trending", FilmFlixIcons.FlameFilled, "phim-moi-cap-nhat", "Phim mới cập nhật"),
+            Filter("Phim mới", FilmFlixIcons.FlameFilled, "phim-moi-cap-nhat", "Phim mới cập nhật"),
             Filter("Phim lẻ", FilmFlixIcons.DiamondOutline, "phim-le", "Phim lẻ"),
             Filter("Phim bộ", FilmFlixIcons.PlayFilled, "phim-bo", "Phim bộ"),
             Filter("Hoạt hình", FilmFlixIcons.BoltFilled, "hoat-hinh", "Hoạt hình"),
-            Filter("TV Shows", FilmFlixIcons.FilmOutline, "tv-shows", "TV Shows"),
         )
     }
     var selectedIndex by rememberSaveable { mutableStateOf(0) }
