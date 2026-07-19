@@ -69,10 +69,10 @@ import com.nguonc.stream.ui.theme.glowShadow
 @Composable
 fun SearchScreen(
     onMovieClick: (String) -> Unit,
-    onBack: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -213,7 +213,10 @@ fun SearchScreen(
             ) { phase ->
                 when (phase) {
                     SearchPhase.Suggestions -> SearchSuggestions(
-                        onKeywordClick = { viewModel.onQueryChange(it) }
+                        recentSearches = recentSearches,
+                        onKeywordClick = { viewModel.onQueryChange(it) },
+                        onRemoveRecent = viewModel::removeRecentSearch,
+                        onClearRecent = viewModel::clearRecentSearches,
                     )
                     SearchPhase.Error -> ErrorBox(state.error!!, onRetry = viewModel::retry)
                     SearchPhase.Loading -> Box(
@@ -226,7 +229,7 @@ fun SearchScreen(
                     SearchPhase.Results -> LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Adaptive(minSize = 118.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp, bottom = 130.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(18.dp),
                         modifier = Modifier.fillMaxSize()
@@ -259,7 +262,12 @@ private enum class SearchPhase { Suggestions, Loading, Empty, Results, Error }
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
+private fun SearchSuggestions(
+    recentSearches: List<String>,
+    onKeywordClick: (String) -> Unit,
+    onRemoveRecent: (String) -> Unit,
+    onClearRecent: () -> Unit,
+) {
     val hotKeywords = remember {
         listOf("Trảm Thần", "Đấu Phá Thương Khung", "One Piece", "Solo Leveling", "Thế Giới Hoàn Mỹ", "Thần Ẩn", "Linh Vực", "Naruto", "Doraemon 2025", "Avengers")
     }
@@ -284,7 +292,7 @@ private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
                 }
             }
             Text(
-                text = "Đang thịnh hành",
+                text = "Có thể bạn quan tâm",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -294,7 +302,7 @@ private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
                 border = BorderStroke(1.dp, Primary.copy(alpha = 0.25f))
             ) {
                 Text(
-                    "LIVE",
+                    "GỢI Ý",
                     style = PremiumTextStyles.Eyebrow,
                     color = Primary,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -351,58 +359,87 @@ private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(30.dp))
-        // Recent searches (mock)
-        Text(
-            "Tìm kiếm gần đây",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-        )
-        Spacer(Modifier.height(12.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("One Piece Film Red", "Solo Leveling SS2", "Naruto Shippuden").forEach { recent ->
-                val interaction = remember { MutableInteractionSource() }
-                val isPressed by interaction.collectIsPressedAsState()
-                val bgAlpha by androidx.compose.animation.core.animateFloatAsState(
-                    targetValue = if (isPressed) 0.85f else 0f,
-                    animationSpec = Motion.snappy(),
-                    label = "recentBg"
+        if (recentSearches.isNotEmpty()) {
+            Spacer(Modifier.height(30.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Tìm kiếm gần đây",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
-                Row(
+                Text(
+                    "Xoá tất cả",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Primary,
                     modifier = Modifier
-                        .fillMaxWidth()
                         .clip(AppShapes.Small)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = bgAlpha))
-                        .clickable(interactionSource = interaction, indication = null) {
-                            onKeywordClick(recent)
-                        }
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Surface(
-                        shape = AppShapes.Small,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.size(38.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClearRecent
+                        )
+                        .padding(6.dp)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                recentSearches.forEach { recent ->
+                    val interaction = remember { MutableInteractionSource() }
+                    val isPressed by interaction.collectIsPressedAsState()
+                    val bgAlpha by androidx.compose.animation.core.animateFloatAsState(
+                        targetValue = if (isPressed) 0.85f else 0f,
+                        animationSpec = Motion.snappy(),
+                        label = "recentBg"
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppShapes.Small)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = bgAlpha))
+                            .clickable(interactionSource = interaction, indication = null) {
+                                onKeywordClick(recent)
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                FilmFlixIcons.ClockOutline, null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        Surface(
+                            shape = AppShapes.Small,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    FilmFlixIcons.ClockOutline, null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
+                        Text(
+                            recent,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            FilmFlixIcons.ClearOutline,
+                            contentDescription = "Xoá \"$recent\" khỏi lịch sử",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { onRemoveRecent(recent) }
+                                )
+                                .padding(4.dp)
+                                .size(16.dp)
+                        )
                     }
-                    Text(
-                        recent,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        FilmFlixIcons.ClearOutline, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
             }
         }

@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
-import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.nguonc.stream.data.remote.PhimApi
 import com.nguonc.stream.data.remote.dto.EpisodeDto
 import com.nguonc.stream.data.remote.dto.EpisodeServerDto
 import com.nguonc.stream.data.repository.MovieRepository
@@ -25,78 +28,26 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/**
- * Một server (nguồn âm thanh) cùng danh sách tập của nó.
- * Ví dụ: server "Vietsub", "Thuyết Minh", "Lồng tiếng".
- */
-data class ServerGroup(
-    val index: Int,
-    val name: String,
-    val episodes: List<EpisodeDto>,
-)
-
 data class PlayerUiState(
     val isLoading: Boolean = true,
-    val isBuffering: Boolean = false,
+    /** Lỗi khi tải metadata phim (API) — chưa có gì để phát, hiện full-screen error. */
     val error: String? = null,
+    /** Lỗi phát sinh trong lúc phát video (mạng rớt giữa chừng, CDN từ chối...) — khác với `error`. */
+    val playerError: String? = null,
+    val isBuffering: Boolean = false,
     val movieName: String = "",
-    val movieOriginName: String = "",
     val posterUrl: String = "",
-    val trailerUrl: String = "",
-    val movieYear: Int = 0,
-    val movieLang: String = "",
-    val servers: List<ServerGroup> = emptyList(),
+    /** Toàn bộ server trả về từ API, KHÔNG lọc theo linkM3u8 — để danh sách tập khớp 100% với DetailScreen. */
+    val servers: List<EpisodeServerDto> = emptyList(),
     val currentServerIndex: Int = 0,
     val currentEpisodeSlug: String = "",
-    val isPlaying: Boolean = false,
-    val positionMs: Long = 0L,
-    val durationMs: Long = 0L,
-    val bufferedMs: Long = 0L,
-    val playbackSpeed: Float = 1.0f,
-    val controlsVisible: Boolean = true,
-    val isLocked: Boolean = false,
 ) {
-    val currentEpisodeName: String
-        get() = currentEpisode?.name.orEmpty()
-
-    val currentEpisode: EpisodeDto?
-        get() = currentServer?.episodes?.firstOrNull { it.slug == currentEpisodeSlug }
-
-    val currentServer: ServerGroup?
-        get() = servers.getOrNull(currentServerIndex)
-
-    val hasMultipleServers: Boolean get() = servers.size > 1
-    val hasMultipleEpisodes: Boolean get() = (currentServer?.episodes?.size ?: 0) > 1
-
-    /** Tập kế tiếp, null nếu đang ở tập cuối. */
-    val nextEpisode: EpisodeDto?
-        get() {
-            val srv = currentServer ?: return null
-            val idx = srv.episodes.indexOfFirst { it.slug == currentEpisodeSlug }
-            if (idx < 0 || idx >= srv.episodes.size - 1) return null
-            return srv.episodes[idx + 1]
-        }
-
-    val progress: Float
-        get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-
-    val bufferedProgress: Float
-        get() = if (durationMs > 0) (bufferedMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-
-    /**
-     * URL phát hiện tại của tập đang xem.
-     * - Nếu linkM3u8 không rỗng → ExoPlayer play trực tiếp m3u8.
-     * - Nếu chỉ có linkEmbed → dùng WebView để load iframe player.
-     *   (Trường hợp NguoncApi chỉ trả embed URL.)
-     */
-    val currentPlayUrl: String
-        get() = currentEpisode?.linkM3u8?.takeIf { it.isNotBlank() }
-            ?: currentEpisode?.linkEmbed.orEmpty()
-
-    /** true nếu phải dùng WebView (chỉ có embed URL, không có m3u8). */
-    val useWebView: Boolean
-        get() = currentEpisode?.linkM3u8.isNullOrBlank() &&
-            !currentEpisode?.linkEmbed.isNullOrBlank()
+    val currentServer: EpisodeServerDto? get() = servers.getOrNull(currentServerIndex)
+    val currentEpisodes: List<EpisodeDto> get() = currentServer?.serverData.orEmpty()
+    val currentEpisode: EpisodeDto? get() = currentEpisodes.firstOrNull { it.slug == currentEpisodeSlug }
+    val currentEpisodeName: String get() = currentEpisode?.name.orEmpty()
+    /** Tên hiển thị của server hiện tại (vd "Vietsub", "Lồng Tiếng") — dùng cho chip chuyển server trong player. */
+    val currentServerName: String get() = currentServer?.serverName.orEmpty()
 }
 
 @HiltViewModel
@@ -108,48 +59,49 @@ class PlayerViewModel @Inject constructor(
 
     private val slug: String = checkNotNull(savedStateHandle["slug"])
     private val requestedEpisode: String? = savedStateHandle["ep"]
-    private val requestedServer: Int = savedStateHandle.get<Int>("server") ?: 0
+    private val requestedServerIndex: Int = savedStateHandle["server"] ?: 0
 
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
-    /** Player sống trong ViewModel để không mất tiến trình khi xoay màn hình. */
+    /**
+     * Player sống trong ViewModel để không mất tiến trình khi xoay màn hình.
+     * Gắn User-Agent giống hệt OkHttp (PhimApi.USER_AGENT) — CDN segment .m3u8/.ts
+     * của một số nguồn từ chối request không có User-Agent hợp lệ.
+     */
     val player: ExoPlayer by lazy {
-        ExoPlayer.Builder(appContext).build().apply {
-            playWhenReady = true
-        }
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(PhimApi.USER_AGENT)
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+        val mediaSourceFactory = DefaultMediaSourceFactory(appContext)
+            .setDataSourceFactory(dataSourceFactory)
+        ExoPlayer.Builder(appContext)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .build()
+            .apply { playWhenReady = true }
     }
 
     private var progressJob: Job? = null
-    private var resumePositionMs: Long = 0L
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            _uiState.update { it.copy(isPlaying = isPlaying) }
             if (isPlaying) startProgressSaver() else stopProgressSaver()
         }
 
-        override fun onPlaybackStateChanged(state: Int) {
-            when (state) {
-                Player.STATE_BUFFERING -> _uiState.update { it.copy(isBuffering = true) }
-                Player.STATE_READY -> _uiState.update { it.copy(isBuffering = false, error = null) }
-                Player.STATE_ENDED -> {
-                    // Tự chuyển tập kế tiếp
-                    _uiState.value.nextEpisode?.let { nextEp ->
-                        switchEpisode(nextEp, autoPlay = true)
-                    }
-                }
-                Player.STATE_IDLE -> Unit
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            _uiState.update {
+                it.copy(
+                    isBuffering = playbackState == Player.STATE_BUFFERING,
+                    // Phát được rồi thì bỏ lỗi cũ (vd sau khi buffer lại thành công)
+                    playerError = if (playbackState == Player.STATE_READY) null else it.playerError,
+                )
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            _uiState.update {
-                it.copy(
-                    isBuffering = false,
-                    error = error.readablePlayerMessage(),
-                )
-            }
+            _uiState.update { it.copy(isBuffering = false, playerError = error.toFriendlyMessage()) }
         }
     }
 
@@ -158,152 +110,111 @@ class PlayerViewModel @Inject constructor(
         load()
     }
 
+    /** Tải lại toàn bộ metadata phim từ API — dùng khi mở màn hình hoặc lỗi tải ban đầu. */
     fun load() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, playerError = null) }
             runCatching {
                 val detail = repository.getMovieDetail(slug)
                 val history = repository.getHistory(slug)
                 detail to history
             }.onSuccess { (detail, history) ->
-                // Repository đã lọc các server không có link m3u8 hợp lệ.
-                // Detail và Player dùng cùng một danh sách server, index khớp 1:1.
-                val servers: List<ServerGroup> = detail.episodes
-                    .mapIndexed { idx, srv ->
-                        ServerGroup(
-                            index = idx,
-                            name = srv.serverName.ifBlank { "Server ${idx + 1}" },
-                            episodes = srv.serverData
-                        )
-                    }
-
-                if (servers.isEmpty()) {
-                    _uiState.update {
-                        it.copy(isLoading = false, error = "Phim chưa có nguồn phát")
-                    }
+                val servers = detail.episodes
+                if (servers.isEmpty() || servers.all { it.serverData.isEmpty() }) {
+                    _uiState.update { it.copy(isLoading = false, error = "Phim chưa có nguồn phát") }
                     return@onSuccess
                 }
 
-                // Chọn server theo requestedServer, clamp vào khoảng hợp lệ
-                val targetServerIdx = requestedServer.coerceIn(0, servers.lastIndex)
-                val server = servers[targetServerIdx]
+                val resolvedServerIndex = requestedServerIndex.coerceIn(0, servers.lastIndex)
+                val targetServer = servers[resolvedServerIndex]
+                val episodesInServer = targetServer.serverData
+                val targetEpisode = episodesInServer.firstOrNull { it.slug == requestedEpisode }
+                    ?: episodesInServer.firstOrNull()
 
-                // Chọn tập: theo requestedEpisode → history → đầu
-                val targetEpisode = server.episodes.firstOrNull { it.slug == requestedEpisode }
-                    ?: server.episodes.firstOrNull { it.slug == history?.episodeSlug }
-                    ?: server.episodes.first()
+                if (targetEpisode == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Server \"${targetServer.serverName}\" chưa có tập nào") }
+                    return@onSuccess
+                }
 
-                resumePositionMs =
-                    if (history?.episodeSlug == targetEpisode.slug) history.positionMs else 0L
+                val resumePositionMs = if (
+                    history != null &&
+                    history.episodeSlug == targetEpisode.slug &&
+                    history.serverIndex == resolvedServerIndex
+                ) history.positionMs else 0L
 
                 _uiState.update {
                     it.copy(
                         isLoading = false,
+                        error = null,
                         movieName = detail.movie.name,
-                        movieOriginName = detail.movie.originName,
                         posterUrl = detail.movie.posterUrl,
-                        trailerUrl = detail.movie.trailerUrl,
-                        movieYear = detail.movie.year,
-                        movieLang = detail.movie.lang,
                         servers = servers,
-                        currentServerIndex = targetServerIdx,
+                        currentServerIndex = resolvedServerIndex,
                         currentEpisodeSlug = targetEpisode.slug,
                     )
                 }
-                play(targetEpisode, resumePositionMs)
+                playEpisode(resolvedServerIndex, targetEpisode, resumePositionMs)
             }.onFailure { e ->
                 _uiState.update { it.copy(isLoading = false, error = e.readableMessage()) }
             }
         }
     }
 
-    /**
-     * Chuyển server (Vietsub ↔ Thuyết Minh ↔ Lồng tiếng).
-     * Cố gắng giữ tập hiện tại theo slug; nếu không có thì lấy đầu.
-     */
-    fun switchServer(serverIndex: Int) {
+    /** Đổi tập trong CÙNG server đang xem. */
+    fun switchEpisode(episode: EpisodeDto) {
         val state = _uiState.value
-        val targetServer = state.servers.getOrNull(serverIndex) ?: return
-        if (serverIndex == state.currentServerIndex) return
+        if (episode.slug == state.currentEpisodeSlug) return
         saveCurrentProgress()
-        val targetEp = targetServer.episodes.firstOrNull { it.slug == state.currentEpisodeSlug }
-            ?: targetServer.episodes.firstOrNull()
+        playEpisode(state.currentServerIndex, episode, startPositionMs = 0L)
+    }
+
+    /**
+     * Đổi server (vd Vietsub ↔ Lồng Tiếng) — cố gắng giữ nguyên tập đang xem (khớp theo slug)
+     * và giữ nguyên vị trí phát hiện tại để chuyển track mượt, không phải xem lại từ đầu.
+     */
+    fun switchServer(newServerIndex: Int) {
+        val state = _uiState.value
+        if (newServerIndex == state.currentServerIndex) return
+        val newServer = state.servers.getOrNull(newServerIndex) ?: return
+        val currentPositionMs = runCatching { player.currentPosition }.getOrDefault(0L).coerceAtLeast(0L)
+        saveCurrentProgress()
+        val matchedEpisode = newServer.serverData.firstOrNull { it.slug == state.currentEpisodeSlug }
+            ?: newServer.serverData.firstOrNull()
             ?: return
-        _uiState.update {
-            it.copy(
-                currentServerIndex = serverIndex,
-                currentEpisodeSlug = targetEp.slug,
-            )
-        }
-        play(targetEp, startPositionMs = 0L)
+        _uiState.update { it.copy(currentServerIndex = newServerIndex) }
+        playEpisode(newServerIndex, matchedEpisode, startPositionMs = currentPositionMs)
     }
 
-    fun switchEpisode(episode: EpisodeDto, autoPlay: Boolean = false) {
-        if (episode.slug == _uiState.value.currentEpisodeSlug && !autoPlay) return
-        saveCurrentProgress()
-        _uiState.update { it.copy(currentEpisodeSlug = episode.slug) }
-        play(episode, startPositionMs = 0L)
+    /** Thử phát lại tập/server hiện tại từ vị trí đang dừng — dùng cho nút Thử lại khi lỗi phát sinh giữa chừng. */
+    fun retryPlayback() {
+        val state = _uiState.value
+        val episode = state.currentEpisode ?: return
+        val position = runCatching { player.currentPosition }.getOrDefault(0L).coerceAtLeast(0L)
+        playEpisode(state.currentServerIndex, episode, startPositionMs = position)
     }
 
-    private fun play(episode: EpisodeDto, startPositionMs: Long) {
-        // Nếu chỉ có embed URL (NguoncApi), ExoPlayer không play được.
-        // PlayerScreen sẽ dùng WebView để load embed URL.
-        // Ở đây chỉ set state + skip ExoPlayer setup.
+    private fun playEpisode(serverIndex: Int, episode: EpisodeDto, startPositionMs: Long) {
         if (episode.linkM3u8.isBlank()) {
-            // Embed mode: đánh dấu isPlaying = true để UI ẩn loading
             _uiState.update {
                 it.copy(
-                    isBuffering = false,
-                    isPlaying = true,
-                    durationMs = 0L,
-                    positionMs = 0L,
-                    bufferedMs = 0L,
+                    currentServerIndex = serverIndex,
+                    currentEpisodeSlug = episode.slug,
+                    playerError = "Tập này chưa có liên kết phát trực tiếp trong ứng dụng.",
                 )
             }
             return
         }
-        val mediaItem = MediaItem.fromUri(episode.linkM3u8)
-        player.setMediaItem(mediaItem, startPositionMs)
+        _uiState.update {
+            it.copy(currentServerIndex = serverIndex, currentEpisodeSlug = episode.slug, playerError = null)
+        }
+        player.setMediaItem(MediaItem.fromUri(episode.linkM3u8), startPositionMs)
         player.prepare()
         player.playWhenReady = true
     }
 
-    fun togglePlayPause() {
-        if (player.isPlaying) player.pause() else {
-            if (player.playbackState == Player.STATE_ENDED) {
-                player.seekTo(0)
-            }
-            player.play()
-        }
+    fun pause() {
+        runCatching { player.pause() }
     }
-
-    fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs.coerceIn(0, player.duration.coerceAtLeast(0)))
-    }
-
-    fun seekRelative(deltaMs: Long) {
-        val target = (player.currentPosition + deltaMs).coerceIn(0, player.duration.coerceAtLeast(0))
-        player.seekTo(target)
-    }
-
-    fun setPlaybackSpeed(speed: Float) {
-        player.playbackParameters = PlaybackParameters(speed, 1.0f)
-        _uiState.update { it.copy(playbackSpeed = speed) }
-    }
-
-    fun toggleControls() {
-        _uiState.update { it.copy(controlsVisible = !it.controlsVisible) }
-    }
-
-    fun setControlsVisible(visible: Boolean) {
-        _uiState.update { it.copy(controlsVisible = visible) }
-    }
-
-    fun toggleLock() {
-        _uiState.update { it.copy(isLocked = !it.isLocked, controlsVisible = !it.isLocked) }
-    }
-
-    fun pause() = player.pause()
 
     /** Lưu tiến độ xem định kỳ 5s một lần trong khi đang phát. */
     private fun startProgressSaver() {
@@ -312,12 +223,6 @@ class PlayerViewModel @Inject constructor(
             while (isActive) {
                 delay(5_000)
                 saveCurrentProgress()
-                val pos = runCatching { player.currentPosition }.getOrDefault(0L)
-                val dur = runCatching { player.duration }.getOrDefault(0L)
-                val buf = runCatching { player.bufferedPosition }.getOrDefault(0L)
-                _uiState.update {
-                    it.copy(positionMs = pos, durationMs = dur, bufferedMs = buf)
-                }
             }
         }
     }
@@ -333,6 +238,8 @@ class PlayerViewModel @Inject constructor(
         if (state.movieName.isBlank() || state.currentEpisodeSlug.isBlank()) return
         val position = runCatching { player.currentPosition }.getOrDefault(0L)
         if (position <= 0L) return
+        val duration = runCatching { player.duration }.getOrDefault(C.TIME_UNSET)
+            .takeIf { it != C.TIME_UNSET && it > 0L } ?: 0L
         viewModelScope.launch {
             repository.saveProgress(
                 slug = slug,
@@ -341,24 +248,31 @@ class PlayerViewModel @Inject constructor(
                 episodeSlug = state.currentEpisodeSlug,
                 episodeName = state.currentEpisodeName,
                 positionMs = position,
+                durationMs = duration,
+                serverIndex = state.currentServerIndex,
             )
         }
     }
 
     override fun onCleared() {
         stopProgressSaver()
-        player.removeListener(playerListener)
-        player.release()
+        runCatching { player.removeListener(playerListener) }
+        runCatching { player.release() }
         super.onCleared()
     }
+}
 
-    private fun PlaybackException.readablePlayerMessage(): String = when (errorCodeName) {
-        "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED",
-        "ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT" -> "Lỗi kết nối mạng, kiểm tra internet và thử lại"
-        "ERROR_CODE_PARSING_CONTAINER_MALFORMED",
-        "ERROR_CODE_PARSING_MANIFEST_MALFORMED" -> "Nguồn phát bị lỗi, thử đổi server hoặc tập khác"
-        "ERROR_CODE_DECODER_INIT_FAILED",
-        "ERROR_CODE_DECODER_QUERY_FAILED" -> "Thiết bị không hỗ trợ định dạng này"
-        else -> localizedMessage ?: "Không thể phát tập phim này, thử đổi server"
-    }
+/** Dịch lỗi kỹ thuật ExoPlayer (tiếng Anh) sang thông báo tiếng Việt dễ hiểu cho người xem. */
+private fun PlaybackException.toFriendlyMessage(): String = when (errorCode) {
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "Mất kết nối mạng khi đang phát"
+    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
+    PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> "Nguồn phát bị từ chối hoặc không còn khả dụng"
+    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+    PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
+    PlaybackException.ERROR_CODE_PARSING_MANIFEST_UNSUPPORTED -> "Định dạng video không hợp lệ hoặc chưa được hỗ trợ"
+    PlaybackException.ERROR_CODE_DECODING_FAILED,
+    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED -> "Thiết bị không giải mã được video này"
+    else -> "Không thể phát video (mã lỗi $errorCode)"
 }

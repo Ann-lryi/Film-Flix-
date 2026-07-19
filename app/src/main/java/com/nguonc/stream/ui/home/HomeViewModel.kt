@@ -38,9 +38,10 @@ class HomeViewModel @Inject constructor(
 
     private val sectionDefs = listOf(
         "Phim mới cập nhật" to PhimApi.TYPE_NEW,
-        "Phim lẻ đặc sắc" to PhimApi.TYPE_MOVIE,
-        "Phim bộ hot" to PhimApi.TYPE_SERIES,
-        "Hoạt hình đỉnh cao" to PhimApi.TYPE_CARTOON,
+        "Phim lẻ" to PhimApi.TYPE_MOVIE,
+        "Phim bộ" to PhimApi.TYPE_SERIES,
+        "Hoạt hình" to PhimApi.TYPE_CARTOON,
+        "TV Shows" to PhimApi.TYPE_TV_SHOW,
     )
 
     init {

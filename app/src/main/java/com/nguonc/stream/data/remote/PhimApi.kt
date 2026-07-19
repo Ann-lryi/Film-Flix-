@@ -58,6 +58,15 @@ interface PhimApi {
         const val CDN_IMAGE = "https://phimimg.com"
         const val PAGE_SIZE = 24
 
+        /**
+         * User-Agent dùng chung cho MỌI client mạng trong app (OkHttp lẫn ExoPlayer).
+         * Một số endpoint /v1/api và CDN segment .m3u8/.ts chặn request thiếu User-Agent
+         * hợp lệ — trước đây chỉ OkHttp (API) có header này, ExoPlayer (video) thì không,
+         * khiến việc tải danh sách phim thành công nhưng phát video lại bị CDN từ chối.
+         */
+        const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36"
+
         /** Loại danh sách hiển thị ở trang chủ / xem thêm */
         const val TYPE_NEW = "phim-moi-cap-nhat"
         const val TYPE_MOVIE = "phim-le"

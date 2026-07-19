@@ -172,6 +172,54 @@ object FilmFlixIcons {
         }.build()
     }
 
+    /** Hai thanh dừng bo góc — đồng bộ phong cách với PlayFilled (taper nhẹ, EvenOdd). */
+    val PauseFilled: ImageVector by lazy {
+        ImageVector.Builder(
+            name = "PauseFilled",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f
+        ).apply {
+            path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+                // Thanh trái
+                moveTo(6.2f, 5.0f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 4.4f, 6.8f)
+                lineTo(4.4f, 17.2f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 6.2f, 19.0f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 8.0f, 17.2f)
+                lineTo(8.0f, 6.8f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 6.2f, 5.0f)
+                close()
+                // Thanh phải
+                moveTo(17.8f, 5.0f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 16.0f, 6.8f)
+                lineTo(16.0f, 17.2f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 17.8f, 19.0f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 19.6f, 17.2f)
+                lineTo(19.6f, 6.8f)
+                arcTo(1.8f, 1.8f, 0f, false, false, 17.8f, 5.0f)
+                close()
+            }
+        }.build()
+    }
+
+    /**
+     * Mũi tên vòng cung — dùng cho tua lùi/tiến. Component gọi icon này tự thêm nhãn số giây
+     * ("10") đè lên giữa, và lật ngang (scaleX = -1) để tạo phiên bản tua tiến từ cùng 1 path.
+     */
+    val ReplayOutline: ImageVector by lazy {
+        outlineIcon("ReplayOutline") {
+            // Cung tròn ~290° mở về phía dưới-phải, nơi mũi tên chỉ vào
+            moveTo(19.5f, 12.0f)
+            arcTo(7.5f, 7.5f, 0f, true, true, 15.8f, 5.6f)
+            // Mũi tên tại đầu mút cung
+            moveTo(12.2f, 3.6f)
+            lineTo(16.1f, 5.4f)
+            lineTo(13.9f, 8.9f)
+        }
+    }
+
     // ─────────── Outline icons (consistent 1.9 stroke) ───────────
 
     /** Search magnifier — rounded, with thick handle. */
@@ -472,330 +520,6 @@ object FilmFlixIcons {
             lineTo(12.0f, 21.0f)
             lineTo(17.0f, 9.0f)
             lineTo(15.0f, 3.0f)
-        }
-    }
-
-    // ─────────── Player-specific icons ───────────
-
-    /** Pause — two vertical bars. */
-    val PauseFilled: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "PauseFilled",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                fill = SolidColor(Color.Black),
-                pathFillType = PathFillType.EvenOdd
-            ) {
-                moveTo(7.5f, 4.0f)
-                lineTo(10.0f, 4.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 11.0f, 5.0f)
-                lineTo(11.0f, 19.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 10.0f, 20.0f)
-                lineTo(7.5f, 20.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 6.5f, 19.0f)
-                lineTo(6.5f, 5.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 7.5f, 4.0f)
-                close()
-                moveTo(14.0f, 4.0f)
-                lineTo(16.5f, 4.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 17.5f, 5.0f)
-                lineTo(17.5f, 19.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 16.5f, 20.0f)
-                lineTo(14.0f, 20.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 13.0f, 19.0f)
-                lineTo(13.0f, 5.0f)
-                arcTo(1.0f, 1.0f, 0f, false, true, 14.0f, 4.0f)
-                close()
-            }
-        }.build()
-    }
-
-    /** Skip forward 10 seconds. */
-    val SkipForward10: ImageVector by lazy {
-        outlineIcon("SkipForward10") {
-            moveTo(13.0f, 4.0f)
-            lineTo(20.0f, 4.0f)
-            lineTo(20.0f, 11.0f)
-            moveTo(20.0f, 4.0f)
-            lineTo(13.0f, 11.0f)
-            moveTo(4.0f, 13.0f)
-            arcTo(8.0f, 8.0f, 0f, false, true, 18.93f, 11.07f)
-        }
-    }
-
-    /** Skip backward 10 seconds. */
-    val SkipBackward10: ImageVector by lazy {
-        outlineIcon("SkipBackward10") {
-            moveTo(11.0f, 4.0f)
-            lineTo(4.0f, 4.0f)
-            lineTo(4.0f, 11.0f)
-            moveTo(4.0f, 4.0f)
-            lineTo(11.0f, 11.0f)
-            moveTo(20.0f, 13.0f)
-            arcTo(8.0f, 8.0f, 0f, false, false, 5.07f, 11.07f)
-        }
-    }
-
-    /** Skip next episode. */
-    val SkipNext: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "SkipNext",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                fill = SolidColor(Color.Black),
-                pathFillType = PathFillType.EvenOdd
-            ) {
-                // Triangle pointing right (play shape)
-                moveTo(6.0f, 5.0f)
-                lineTo(6.0f, 19.0f)
-                lineTo(16.0f, 12.0f)
-                close()
-                // Vertical bar on right side
-                moveTo(17.5f, 5.0f)
-                lineTo(17.5f, 19.0f)
-                lineTo(19.5f, 19.0f)
-                lineTo(19.5f, 5.0f)
-                close()
-            }
-        }.build()
-    }
-
-    /** Lock — closed padlock for player lock mode. */
-    val LockFilled: ImageVector by lazy {
-        ImageVector.Builder(
-            name = "LockFilled",
-            defaultWidth = 24.dp,
-            defaultHeight = 24.dp,
-            viewportWidth = 24f,
-            viewportHeight = 24f
-        ).apply {
-            path(
-                fill = SolidColor(Color.Black),
-                pathFillType = PathFillType.EvenOdd
-            ) {
-                moveTo(7.0f, 10.0f)
-                lineTo(7.0f, 8.0f)
-                arcTo(5.0f, 5.0f, 0f, false, true, 17.0f, 8.0f)
-                lineTo(17.0f, 10.0f)
-                lineTo(18.0f, 10.0f)
-                arcTo(2.0f, 2.0f, 0f, false, true, 20.0f, 12.0f)
-                lineTo(20.0f, 19.0f)
-                arcTo(2.0f, 2.0f, 0f, false, true, 18.0f, 21.0f)
-                lineTo(6.0f, 21.0f)
-                arcTo(2.0f, 2.0f, 0f, false, true, 4.0f, 19.0f)
-                lineTo(4.0f, 12.0f)
-                arcTo(2.0f, 2.0f, 0f, false, true, 6.0f, 10.0f)
-                close()
-                moveTo(9.0f, 10.0f)
-                lineTo(15.0f, 10.0f)
-                lineTo(15.0f, 8.0f)
-                arcTo(3.0f, 3.0f, 0f, false, false, 9.0f, 8.0f)
-                close()
-            }
-        }.build()
-    }
-
-    /** Unlock — open padlock. */
-    val UnlockOutline: ImageVector by lazy {
-        outlineIcon("UnlockOutline") {
-            moveTo(7.0f, 10.0f)
-            lineTo(17.0f, 10.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 19.0f, 12.0f)
-            lineTo(19.0f, 19.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 17.0f, 21.0f)
-            lineTo(6.0f, 21.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 4.0f, 19.0f)
-            lineTo(4.0f, 12.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 6.0f, 10.0f)
-            moveTo(8.0f, 10.0f)
-            lineTo(8.0f, 7.0f)
-            arcTo(4.0f, 4.0f, 0f, false, true, 16.0f, 7.0f)
-        }
-    }
-
-    /** Speed / gauge — for playback speed control. */
-    val GaugeOutline: ImageVector by lazy {
-        outlineIcon("GaugeOutline") {
-            moveTo(12.0f, 14.0f)
-            lineTo(16.0f, 9.0f)
-            moveTo(5.0f, 18.0f)
-            arcTo(9.0f, 9.0f, 0f, true, true, 19.0f, 18.0f)
-            lineTo(5.0f, 18.0f)
-            close()
-        }
-    }
-
-    /** Settings — gear icon for player settings sheet. */
-    val SettingsOutline: ImageVector by lazy {
-        outlineIcon("SettingsOutline") {
-            // Outer gear circle (8 teeth)
-            moveTo(12.0f, 9.0f)
-            arcTo(3.0f, 3.0f, 0f, true, true, 12.0f, 15.0f)
-            arcTo(3.0f, 3.0f, 0f, true, true, 12.0f, 9.0f)
-            close()
-            // Center dot
-            moveTo(12.0f, 11.0f)
-            arcTo(1.0f, 1.0f, 0f, true, true, 12.0f, 13.0f)
-            arcTo(1.0f, 1.0f, 0f, true, true, 12.0f, 11.0f)
-            close()
-            // 8 teeth around the gear
-            moveTo(12.0f, 2.0f)
-            lineTo(13.5f, 2.0f)
-            lineTo(13.5f, 4.5f)
-            lineTo(12.0f, 4.5f)
-            close()
-            moveTo(12.0f, 19.5f)
-            lineTo(13.5f, 19.5f)
-            lineTo(13.5f, 22.0f)
-            lineTo(12.0f, 22.0f)
-            close()
-            moveTo(10.5f, 2.0f)
-            lineTo(12.0f, 2.0f)
-            lineTo(12.0f, 4.5f)
-            lineTo(10.5f, 4.5f)
-            close()
-            moveTo(10.5f, 19.5f)
-            lineTo(12.0f, 19.5f)
-            lineTo(12.0f, 22.0f)
-            lineTo(10.5f, 22.0f)
-            close()
-        }
-    }
-
-    /** List — for episode list sheet toggle. */
-    val ListOutline: ImageVector by lazy {
-        outlineIcon("ListOutline") {
-            moveTo(8.0f, 6.0f)
-            lineTo(21.0f, 6.0f)
-            moveTo(8.0f, 12.0f)
-            lineTo(21.0f, 12.0f)
-            moveTo(8.0f, 18.0f)
-            lineTo(21.0f, 18.0f)
-            moveTo(3.0f, 6.0f)
-            lineTo(3.01f, 6.0f)
-            moveTo(3.0f, 12.0f)
-            lineTo(3.01f, 12.0f)
-            moveTo(3.0f, 18.0f)
-            lineTo(3.01f, 18.0f)
-        }
-    }
-
-    /** Server / layers — for audio server switcher. */
-    val ServerOutline: ImageVector by lazy {
-        outlineIcon("ServerOutline") {
-            moveTo(21.0f, 16.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 19.0f, 18.0f)
-            lineTo(5.0f, 18.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 3.0f, 16.0f)
-            lineTo(3.0f, 8.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 5.0f, 6.0f)
-            lineTo(19.0f, 6.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 21.0f, 8.0f)
-            close()
-            moveTo(3.0f, 10.0f)
-            lineTo(21.0f, 10.0f)
-            moveTo(7.0f, 14.0f)
-            lineTo(7.01f, 14.0f)
-            moveTo(11.0f, 14.0f)
-            lineTo(11.01f, 14.0f)
-        }
-    }
-
-    /** Mute / volume-off. */
-    val VolumeOffOutline: ImageVector by lazy {
-        outlineIcon("VolumeOffOutline") {
-            moveTo(11.0f, 5.0f)
-            lineTo(6.0f, 9.0f)
-            lineTo(2.0f, 9.0f)
-            lineTo(2.0f, 15.0f)
-            lineTo(6.0f, 15.0f)
-            lineTo(11.0f, 19.0f)
-            close()
-            moveTo(23.0f, 9.0f)
-            lineTo(17.0f, 15.0f)
-            moveTo(17.0f, 9.0f)
-            lineTo(23.0f, 15.0f)
-        }
-    }
-
-    /** Volume on. */
-    val VolumeOnOutline: ImageVector by lazy {
-        outlineIcon("VolumeOnOutline") {
-            moveTo(11.0f, 5.0f)
-            lineTo(6.0f, 9.0f)
-            lineTo(2.0f, 9.0f)
-            lineTo(2.0f, 15.0f)
-            lineTo(6.0f, 15.0f)
-            lineTo(11.0f, 19.0f)
-            close()
-            moveTo(15.54f, 8.46f)
-            arcTo(5.0f, 5.0f, 0f, false, true, 15.54f, 15.54f)
-            moveTo(19.07f, 4.93f)
-            arcTo(10.0f, 10.0f, 0f, false, true, 19.07f, 19.07f)
-        }
-    }
-
-    /** Trailer / film strip. */
-    val FilmOutline: ImageVector by lazy {
-        outlineIcon("FilmOutline") {
-            moveTo(3.0f, 5.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 5.0f, 3.0f)
-            lineTo(19.0f, 3.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 21.0f, 5.0f)
-            lineTo(21.0f, 19.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 19.0f, 21.0f)
-            lineTo(5.0f, 21.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 3.0f, 19.0f)
-            close()
-            moveTo(7.0f, 3.0f)
-            lineTo(7.0f, 21.0f)
-            moveTo(17.0f, 3.0f)
-            lineTo(17.0f, 21.0f)
-            moveTo(3.0f, 8.0f)
-            lineTo(7.0f, 8.0f)
-            moveTo(17.0f, 8.0f)
-            lineTo(21.0f, 8.0f)
-            moveTo(3.0f, 16.0f)
-            lineTo(7.0f, 16.0f)
-            moveTo(17.0f, 16.0f)
-            lineTo(21.0f, 16.0f)
-            moveTo(3.0f, 12.0f)
-            lineTo(21.0f, 12.0f)
-        }
-    }
-
-    /** Check mark — for selected state in sheets. */
-    val CheckOutline: ImageVector by lazy {
-        outlineIcon("CheckOutline") {
-            moveTo(20.0f, 6.0f)
-            lineTo(9.0f, 17.0f)
-            lineTo(4.0f, 12.0f)
-        }
-    }
-
-    /** Cast — for chromecast icon (decorative). */
-    val CastOutline: ImageVector by lazy {
-        outlineIcon("CastOutline") {
-            moveTo(2.0f, 8.0f)
-            lineTo(2.0f, 6.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 4.0f, 4.0f)
-            lineTo(20.0f, 4.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 22.0f, 6.0f)
-            lineTo(22.0f, 18.0f)
-            arcTo(2.0f, 2.0f, 0f, false, true, 20.0f, 20.0f)
-            lineTo(15.0f, 20.0f)
-            moveTo(2.0f, 12.0f)
-            arcTo(5.0f, 5.0f, 0f, false, true, 7.0f, 17.0f)
-            moveTo(2.0f, 16.0f)
-            arcTo(1.0f, 1.0f, 0f, false, true, 3.0f, 17.0f)
         }
     }
 }
