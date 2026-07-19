@@ -206,42 +206,51 @@ fun PlayerScreen(
                 onBack = onBack,
             )
             else -> {
-                val player = remember { viewModel.player }
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            useController = false // we draw our own controls
-                            keepScreenOn = true
-                            setShowNextButton(false)
-                            setShowPreviousButton(false)
-                            this.player = player
-                            // Hide buffer spinner, we draw our own
-                            setKeepContentOnPlayerReset(true)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(state.isLocked) {
-                            if (state.isLocked) return@pointerInput
-                            detectTapGestures(
-                                onTap = {
-                                    viewModel.toggleControls()
-                                },
-                                onDoubleTap = { offset ->
-                                    val width = size.width.toFloat()
-                                    if (offset.x < width / 3) {
-                                        viewModel.seekRelative(-10_000)
-                                        seekHintMs = -10_000
-                                    } else if (offset.x > width * 2 / 3) {
-                                        viewModel.seekRelative(10_000)
-                                        seekHintMs = 10_000
-                                    } else {
-                                        viewModel.togglePlayPause()
-                                    }
-                                },
-                            )
+                // Chọn player: WebView (cho embed URL từ NguoncApi) hoặc ExoPlayer (cho m3u8)
+                if (state.useWebView) {
+                    EmbedWebViewPlayer(
+                        embedUrl = state.currentPlayUrl,
+                        isLocked = state.isLocked,
+                        onToggleControls = viewModel::toggleControls,
+                    )
+                } else {
+                    val player = remember { viewModel.player }
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                useController = false // we draw our own controls
+                                keepScreenOn = true
+                                setShowNextButton(false)
+                                setShowPreviousButton(false)
+                                this.player = player
+                                // Hide buffer spinner, we draw our own
+                                setKeepContentOnPlayerReset(true)
+                            }
                         },
-                )
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(state.isLocked) {
+                                if (state.isLocked) return@pointerInput
+                                detectTapGestures(
+                                    onTap = {
+                                        viewModel.toggleControls()
+                                    },
+                                    onDoubleTap = { offset ->
+                                        val width = size.width.toFloat()
+                                        if (offset.x < width / 3) {
+                                            viewModel.seekRelative(-10_000)
+                                            seekHintMs = -10_000
+                                        } else if (offset.x > width * 2 / 3) {
+                                            viewModel.seekRelative(10_000)
+                                            seekHintMs = 10_000
+                                        } else {
+                                            viewModel.togglePlayPause()
+                                        }
+                                    },
+                                )
+                            },
+                    )
+                }
 
                 // Poster placeholder while buffering at the very start
                 if (state.isBuffering && state.positionMs <= 0L && state.posterUrl.isNotBlank()) {
@@ -556,58 +565,74 @@ private fun PlayerControlsOverlay(
             }
         }
 
-        // ---------- Center: play/pause + skip ±10s ----------
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(48.dp)
+        // ---------- Center: play/pause + skip ±10s (chỉ ExoPlayer mode) ----------
+        if (!state.useWebView) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                // Skip back 10s
-                PlayerCenterIconButton(
-                    icon = FilmFlixIcons.SkipBackward10,
-                    contentDescription = "Lùi 10s",
-                    size = 56.dp,
-                    iconSize = 30.dp,
-                    onClick = { onSeekRelative(-10_000) }
-                )
-
-                // Main play/pause
-                MainPlayPauseButton(
-                    isPlaying = state.isPlaying,
-                    isBuffering = state.isBuffering,
-                    onClick = onPlayPause,
-                )
-
-                // Skip forward 10s
-                PlayerCenterIconButton(
-                    icon = FilmFlixIcons.SkipForward10,
-                    contentDescription = "Tiến 10s",
-                    size = 56.dp,
-                    iconSize = 30.dp,
-                    onClick = { onSeekRelative(10_000) }
-                )
-            }
-
-            // Seek hint (transient "±10s" overlay)
-            AnimatedVisibility(
-                visible = seekHintMs != null,
-                enter = fadeIn() + scaleIn(initialScale = 0.85f),
-                exit = fadeOut() + scaleOut(targetScale = 0.85f),
-                modifier = Modifier.align(Alignment.Center)
-            ) {
-                SeekHintBubble(seekHintMs)
-            }
-
-            // Buffering spinner overlay
-            if (state.isBuffering) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(top = 110.dp) // below the play row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(48.dp)
                 ) {
+                    // Skip back 10s
+                    PlayerCenterIconButton(
+                        icon = FilmFlixIcons.SkipBackward10,
+                        contentDescription = "Lùi 10s",
+                        size = 56.dp,
+                        iconSize = 30.dp,
+                        onClick = { onSeekRelative(-10_000) }
+                    )
+
+                    // Main play/pause
+                    MainPlayPauseButton(
+                        isPlaying = state.isPlaying,
+                        isBuffering = state.isBuffering,
+                        onClick = onPlayPause,
+                    )
+
+                    // Skip forward 10s
+                    PlayerCenterIconButton(
+                        icon = FilmFlixIcons.SkipForward10,
+                        contentDescription = "Tiến 10s",
+                        size = 56.dp,
+                        iconSize = 30.dp,
+                        onClick = { onSeekRelative(10_000) }
+                    )
+                }
+
+                // Seek hint (transient "±10s" overlay)
+                AnimatedVisibility(
+                    visible = seekHintMs != null,
+                    enter = fadeIn() + scaleIn(initialScale = 0.85f),
+                    exit = fadeOut() + scaleOut(targetScale = 0.85f),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    SeekHintBubble(seekHintMs)
+                }
+
+                // Buffering spinner overlay
+                if (state.isBuffering) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(top = 110.dp) // below the play row
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.5.dp,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+        } else {
+            // WebView mode: hint người dùng điều khiển play/pause/seek trong iframe
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (state.isBuffering) {
                     androidx.compose.material3.CircularProgressIndicator(
                         color = Color.White,
                         strokeWidth = 2.5.dp,
@@ -621,7 +646,7 @@ private fun PlayerControlsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
+                .height(if (state.useWebView) 130.dp else 200.dp)
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(listOf(Color.Transparent, PlayerScrimBottom))
@@ -635,13 +660,15 @@ private fun PlayerControlsOverlay(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Seek bar
-            PlayerSeekBar(
-                positionMs = state.positionMs,
-                durationMs = state.durationMs,
-                bufferedMs = state.bufferedMs,
-                onSeek = onSeek,
-            )
+            // Seek bar — chỉ hiện ở ExoPlayer mode (WebView không control được)
+            if (!state.useWebView) {
+                PlayerSeekBar(
+                    positionMs = state.positionMs,
+                    durationMs = state.durationMs,
+                    bufferedMs = state.bufferedMs,
+                    onSeek = onSeek,
+                )
+            }
 
             // Bottom action row
             Row(
@@ -649,12 +676,16 @@ private fun PlayerControlsOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left: speed
-                PlayerChipButton(
-                    onClick = onShowSpeed,
-                    icon = FilmFlixIcons.GaugeOutline,
-                    label = "${state.playbackSpeed}x".replace(".0x", "x"),
-                )
+                // Left: speed (chỉ ExoPlayer)
+                if (!state.useWebView) {
+                    PlayerChipButton(
+                        onClick = onShowSpeed,
+                        icon = FilmFlixIcons.GaugeOutline,
+                        label = "${state.playbackSpeed}x".replace(".0x", "x"),
+                    )
+                } else {
+                    Spacer(Modifier.width(1.dp))
+                }
 
                 // Center: episodes
                 if (state.hasMultipleEpisodes) {
@@ -673,6 +704,8 @@ private fun PlayerControlsOverlay(
                         icon = FilmFlixIcons.SkipNext,
                         label = "Tập kế",
                     )
+                } else if (state.useWebView) {
+                    Spacer(Modifier.width(1.dp))
                 }
             }
         }
@@ -1479,4 +1512,50 @@ private fun formatTime(ms: Long): String {
 private fun formatSpeed(speed: Float): String {
     return if (speed == speed.toInt().toFloat()) "${speed.toInt()}.0x"
     else "${speed}x"
+}
+
+// ======================================================
+// EMBED WEBVIEW PLAYER
+// Dùng khi NguoncApi chỉ trả embed URL (iframe player),
+// không có link_m3u8 trực tiếp.
+// ======================================================
+
+@Composable
+private fun EmbedWebViewPlayer(
+    embedUrl: String,
+    isLocked: Boolean,
+    onToggleControls: () -> Unit,
+) {
+    val context = LocalContext.current
+    AndroidView(
+        factory = { ctx ->
+            android.webkit.WebView(ctx).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.allowFileAccess = true
+                settings.mediaPlaybackRequiresUserGesture = false
+                settings.userAgentString = settings.userAgentString + " FilmFlix/1.0"
+                webViewClient = android.webkit.WebViewClient()
+                // Bật fullscreen cho video trong WebView
+                webChromeClient = object : android.webkit.WebChromeClient() {}
+                setBackgroundColor(android.graphics.Color.BLACK)
+                if (embedUrl.isNotBlank()) {
+                    loadUrl(embedUrl)
+                }
+            }
+        },
+        update = { webview ->
+            if (embedUrl.isNotBlank() && webview.url != embedUrl) {
+                webview.loadUrl(embedUrl)
+            }
+        },
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(isLocked) {
+                if (isLocked) return@pointerInput
+                detectTapGestures(
+                    onTap = { onToggleControls() },
+                )
+            },
+    )
 }

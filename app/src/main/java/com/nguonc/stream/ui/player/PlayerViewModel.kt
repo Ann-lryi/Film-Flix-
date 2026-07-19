@@ -82,6 +82,21 @@ data class PlayerUiState(
 
     val bufferedProgress: Float
         get() = if (durationMs > 0) (bufferedMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+    /**
+     * URL phát hiện tại của tập đang xem.
+     * - Nếu linkM3u8 không rỗng → ExoPlayer play trực tiếp m3u8.
+     * - Nếu chỉ có linkEmbed → dùng WebView để load iframe player.
+     *   (Trường hợp NguoncApi chỉ trả embed URL.)
+     */
+    val currentPlayUrl: String
+        get() = currentEpisode?.linkM3u8?.takeIf { it.isNotBlank() }
+            ?: currentEpisode?.linkEmbed.orEmpty()
+
+    /** true nếu phải dùng WebView (chỉ có embed URL, không có m3u8). */
+    val useWebView: Boolean
+        get() = currentEpisode?.linkM3u8.isNullOrBlank() &&
+            !currentEpisode?.linkEmbed.isNullOrBlank()
 }
 
 @HiltViewModel
@@ -231,6 +246,22 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun play(episode: EpisodeDto, startPositionMs: Long) {
+        // Nếu chỉ có embed URL (NguoncApi), ExoPlayer không play được.
+        // PlayerScreen sẽ dùng WebView để load embed URL.
+        // Ở đây chỉ set state + skip ExoPlayer setup.
+        if (episode.linkM3u8.isBlank()) {
+            // Embed mode: đánh dấu isPlaying = true để UI ẩn loading
+            _uiState.update {
+                it.copy(
+                    isBuffering = false,
+                    isPlaying = true,
+                    durationMs = 0L,
+                    positionMs = 0L,
+                    bufferedMs = 0L,
+                )
+            }
+            return
+        }
         val mediaItem = MediaItem.fromUri(episode.linkM3u8)
         player.setMediaItem(mediaItem, startPositionMs)
         player.prepare()
