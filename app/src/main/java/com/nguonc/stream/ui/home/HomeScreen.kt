@@ -258,58 +258,39 @@ private fun PremiumHomeTopBar(onSearchClick: () -> Unit) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Search pill — premium pressable
-            val searchInteraction = remember { MutableInteractionSource() }
-            Surface(
-                shape = AppShapes.Pill,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .height(44.dp)
-                    .clip(AppShapes.Pill)
-                    .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
+        // Search pill — premium pressable, full-width version on the right
+        val searchInteraction = remember { MutableInteractionSource() }
+        val isPressed by searchInteraction.collectIsPressedAsState()
+        val searchScale by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (isPressed) Motion.PressScale else 1f,
+            animationSpec = Motion.PressSpring,
+            label = "searchPillScale"
+        )
+        Surface(
+            shape = AppShapes.Pill,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .height(44.dp)
+                .scale(searchScale)
+                .clip(AppShapes.Pill)
+                .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Icon(
-                        FilmFlixIcons.SearchOutline, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        "Tìm kiếm",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Notification bell with badge dot
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        FilmFlixIcons.BellOutline, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(9.dp)
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Primary)
-                    )
-                }
+                Icon(
+                    FilmFlixIcons.SearchOutline, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    "Tìm kiếm",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -324,11 +305,11 @@ private fun QuickFilterRow(onSelect: (listType: String, title: String) -> Unit) 
 
     val filters = remember {
         listOf(
-            Filter("Thịnh hành", FilmFlixIcons.FlameFilled, "phim-moi-cap-nhat", "Phim mới"),
-            Filter("Phim mới", FilmFlixIcons.BoltFilled, "phim-moi-cap-nhat", "Phim mới"),
+            Filter("Trending", FilmFlixIcons.FlameFilled, "phim-moi-cap-nhat", "Phim mới cập nhật"),
+            Filter("Phim lẻ", FilmFlixIcons.DiamondOutline, "phim-le", "Phim lẻ"),
             Filter("Phim bộ", FilmFlixIcons.PlayFilled, "phim-bo", "Phim bộ"),
-            Filter("Phim lẻ", FilmFlixIcons.PlayFilled, "phim-le", "Phim lẻ"),
-            Filter("Hoạt hình", FilmFlixIcons.PlayFilled, "hoat-hinh", "Hoạt hình"),
+            Filter("Hoạt hình", FilmFlixIcons.BoltFilled, "hoat-hinh", "Hoạt hình"),
+            Filter("TV Shows", FilmFlixIcons.FilmOutline, "tv-shows", "TV Shows"),
         )
     }
     var selectedIndex by rememberSaveable { mutableStateOf(0) }

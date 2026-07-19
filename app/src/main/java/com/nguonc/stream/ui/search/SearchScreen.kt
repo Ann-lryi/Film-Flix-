@@ -69,6 +69,7 @@ import com.nguonc.stream.ui.theme.glowShadow
 @Composable
 fun SearchScreen(
     onMovieClick: (String) -> Unit,
+    onBack: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()

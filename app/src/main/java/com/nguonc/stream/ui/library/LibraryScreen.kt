@@ -365,8 +365,24 @@ private fun HistoryRow(
 
                 Spacer(Modifier.height(10.dp))
 
+                // Estimate progress: positionMs / assumed-duration
+                // We don't store duration, so we estimate based on typical runtime:
+                //  - < 30min → likely cartoon short
+                //  - 30-90min → movie
+                //  - > 90min → long movie or drama episode
+                // Cap progress visually at 95% to indicate "in progress" vs "done".
                 val progress = remember(item.positionMs) {
-                    if (item.positionMs <= 0) 0.05f else 0.52f
+                    val minutes = item.positionMs / 60_000
+                    // Heuristic: assume episode length scales with minutes-watched.
+                    val assumedTotalMin = when {
+                        minutes < 5 -> 30.0
+                        minutes < 30 -> 45.0
+                        minutes < 60 -> 100.0
+                        minutes < 120 -> 150.0
+                        else -> 200.0
+                    }
+                    val ratio = (item.positionMs / 60_000.0) / assumedTotalMin
+                    ratio.coerceIn(0.02, 0.95).toFloat()
                 }
                 Box(
                     modifier = Modifier

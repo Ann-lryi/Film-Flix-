@@ -26,7 +26,7 @@ data class DetailUiState(
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     private val repository: MovieRepository,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val slug: String = checkNotNull(savedStateHandle["slug"])
@@ -35,6 +35,9 @@ class DetailViewModel @Inject constructor(
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()
 
     init {
+        // Restore selected server across configuration changes / process death
+        val savedServer = savedStateHandle.get<Int>("selectedServer") ?: 0
+        _uiState.update { it.copy(selectedServer = savedServer) }
         load()
         viewModelScope.launch {
             repository.observeIsFavorite(slug).collect { isFav ->
@@ -53,7 +56,12 @@ class DetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             runCatching { repository.getMovieDetail(slug) }
                 .onSuccess { bundle ->
-                    _uiState.update { it.copy(isLoading = false, bundle = bundle) }
+                    // Clamp selectedServer to valid range
+                    val clamped = _uiState.value.selectedServer
+                        .coerceIn(0, (bundle.episodes.size - 1).coerceAtLeast(0))
+                    _uiState.update {
+                        it.copy(isLoading = false, bundle = bundle, selectedServer = clamped)
+                    }
                 }
                 .onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.readableMessage()) }
@@ -67,6 +75,9 @@ class DetailViewModel @Inject constructor(
     }
 
     fun selectServer(index: Int) {
-        _uiState.update { it.copy(selectedServer = index) }
+        val max = (_uiState.value.bundle?.episodes?.size ?: 1) - 1
+        val safe = index.coerceIn(0, max.coerceAtLeast(0))
+        savedStateHandle["selectedServer"] = safe
+        _uiState.update { it.copy(selectedServer = safe) }
     }
 }

@@ -23,16 +23,26 @@ object Routes {
     const val LIBRARY = "library"
     const val GRID = "grid/{source}/{key}/{title}"
     const val DETAIL = "detail/{slug}"
-    const val PLAYER = "player/{slug}?ep={ep}"
+    const val PLAYER = "player/{slug}?ep={ep}&server={server}"
 
     fun grid(source: MovieListSource, key: String, title: String): String =
         "grid/${source.name.lowercase()}/${Uri.encode(key)}/${Uri.encode(title)}"
 
     fun detail(slug: String): String = "detail/$slug"
 
-    fun player(slug: String, episodeSlug: String? = null): String =
-        if (episodeSlug.isNullOrBlank()) "player/$slug"
-        else "player/$slug?ep=${Uri.encode(episodeSlug)}"
+    /**
+     * Player route now carries the selected server index so the player
+     * can load the correct audio track (Vietsub / Thuyết Minh / Lồng tiếng).
+     */
+    fun player(slug: String, episodeSlug: String? = null, serverIndex: Int = 0): String {
+        val epPart = if (episodeSlug.isNullOrBlank()) "" else "?ep=${Uri.encode(episodeSlug)}"
+        val serverPart = if (serverIndex <= 0) {
+            if (epPart.isEmpty()) "" else "&server=$serverIndex"
+        } else {
+            if (epPart.isEmpty()) "?server=$serverIndex" else "&server=$serverIndex"
+        }
+        return "player/$slug$epPart$serverPart"
+    }
 }
 
 @Composable
@@ -50,6 +60,7 @@ fun NguonCNavHost(navController: NavHostController) {
         composable(Routes.SEARCH) {
             SearchScreen(
                 onMovieClick = { slug -> navController.navigate(Routes.detail(slug)) },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.BROWSE) {
@@ -99,7 +110,9 @@ fun NguonCNavHost(navController: NavHostController) {
             DetailScreen(
                 slug = slug,
                 onBack = { navController.popBackStack() },
-                onPlay = { epSlug -> navController.navigate(Routes.player(slug, epSlug)) },
+                onPlay = { epSlug, serverIndex ->
+                    navController.navigate(Routes.player(slug, epSlug, serverIndex))
+                },
                 onCategoryClick = { catSlug, catName ->
                     navController.navigate(Routes.grid(MovieListSource.CATEGORY, catSlug, catName))
                 },
@@ -114,11 +127,19 @@ fun NguonCNavHost(navController: NavHostController) {
                     nullable = true
                     defaultValue = null
                 },
+                navArgument("server") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
             ),
         ) { backStackEntry ->
             val slug = backStackEntry.arguments?.getString("slug").orEmpty()
+            val ep = backStackEntry.arguments?.getString("ep")
+            val server = backStackEntry.arguments?.getInt("server") ?: 0
             PlayerScreen(
                 slug = slug,
+                requestedEpisodeSlug = ep,
+                requestedServerIndex = server,
                 onBack = { navController.popBackStack() },
             )
         }

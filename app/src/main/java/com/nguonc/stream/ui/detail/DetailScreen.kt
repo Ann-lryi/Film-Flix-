@@ -56,26 +56,26 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.nguonc.stream.ui.components.ErrorBox
-import com.nguonc.stream.ui.theme.FilmFlixIcons
 import com.nguonc.stream.ui.components.LoadingBox
 import com.nguonc.stream.ui.components.MetaChip
 import com.nguonc.stream.ui.components.PlayOverlayButton
 import com.nguonc.stream.ui.components.PremiumPrimaryButton
 import com.nguonc.stream.ui.components.PremiumQualityBadge
 import com.nguonc.stream.ui.components.TmdbRating
-import com.nguonc.stream.ui.theme.AppGradients
 import com.nguonc.stream.ui.theme.AppShapes
 import com.nguonc.stream.ui.theme.Elevation
+import com.nguonc.stream.ui.theme.FilmFlixIcons
 import com.nguonc.stream.ui.theme.Motion
 import com.nguonc.stream.ui.theme.Primary
 import com.nguonc.stream.ui.theme.glowShadow
 import com.nguonc.stream.ui.theme.premiumShadow
+import com.nguonc.stream.ui.theme.serverAccentColor
 
 @Composable
 fun DetailScreen(
     slug: String,
     onBack: () -> Unit,
-    onPlay: (episodeSlug: String?) -> Unit,
+    onPlay: (episodeSlug: String?, serverIndex: Int) -> Unit,
     onCategoryClick: (slug: String, name: String) -> Unit,
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
@@ -116,16 +116,13 @@ fun DetailScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                GlassCircleButton(onClick = { }) {
+                GlassCircleButton(onClick = { viewModel.toggleFavorite() }) {
                     Icon(
-                        FilmFlixIcons.ShareOutline,
-                        contentDescription = "Chia sẻ",
-                        tint = Color.White,
+                        imageVector = if (state.isFavorite) FilmFlixIcons.HeartFilled else FilmFlixIcons.HeartOutline,
+                        contentDescription = "Yêu thích",
+                        tint = if (state.isFavorite) Primary else Color.White,
                         modifier = Modifier.size(20.dp)
                     )
-                }
-                GlassCircleButton(onClick = { }) {
-                    Icon(FilmFlixIcons.PlusOutline, null, tint = Color.White, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -163,7 +160,7 @@ private fun GlassCircleButton(
 @Composable
 private fun DetailContent(
     state: DetailUiState,
-    onPlay: (episodeSlug: String?) -> Unit,
+    onPlay: (episodeSlug: String?, serverIndex: Int) -> Unit,
     onToggleFavorite: () -> Unit,
     onSelectServer: (Int) -> Unit,
     onCategoryClick: (slug: String, name: String) -> Unit,
@@ -191,13 +188,12 @@ private fun DetailContent(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
-            // Ambient blur layer with refined gradient stops for OLED
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.25f),
+                            0f to Color.Black.copy(alpha = 0.30f),
                             0.35f to Color.Transparent,
                             0.65f to MaterialTheme.colorScheme.background.copy(alpha = 0.10f),
                             0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.92f),
@@ -206,14 +202,12 @@ private fun DetailContent(
                     )
             )
 
-            // Central play with glow
             PlayOverlayButton(
-                onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode) },
+                onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode, state.selectedServer) },
                 modifier = Modifier.align(Alignment.Center),
                 size = 76.dp
             )
 
-            // Bottom gradient info holder
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -225,7 +219,7 @@ private fun DetailContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PremiumQualityBadge(text = (movie.quality ?: "FHD").uppercase())
+                    PremiumQualityBadge(text = (movie.quality.ifBlank { "FHD" }).uppercase())
                     if (movie.year > 0) {
                         Surface(
                             color = Color.White.copy(alpha = 0.14f),
@@ -260,7 +254,6 @@ private fun DetailContent(
                 .padding(horizontal = 16.dp)
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
-                // Poster with deep multi-layer shadow
                 Card(
                     shape = AppShapes.Large,
                     elevation = CardDefaults.cardElevation(defaultElevation = Elevation.XL),
@@ -329,11 +322,11 @@ private fun DetailContent(
 
             Spacer(Modifier.height(22.dp))
 
-            // Action buttons — full-width primary + favorite
+            // Action buttons — full-width primary + favorite + trailer
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 PremiumPrimaryButton(
                     text = if (state.lastWatchedEpisode != null) "Tiếp tục xem" else "Xem ngay",
-                    onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode) },
+                    onClick = { onPlay(state.lastWatchedEpisode ?: firstEpisode, state.selectedServer) },
                     modifier = Modifier.weight(1f),
                     icon = {
                         Icon(
@@ -430,11 +423,14 @@ private fun DetailContent(
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(8.dp))
+                    val expandInteraction = remember { MutableInteractionSource() }
                     Text(
                         text = if (isExpandedDescription) "Thu gọn" else "Xem thêm",
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                         color = Primary,
-                        modifier = Modifier.clickable { isExpandedDescription = !isExpandedDescription }
+                        modifier = Modifier.clickable(interactionSource = expandInteraction, indication = null) {
+                            isExpandedDescription = !isExpandedDescription
+                        }
                     )
                 }
             }
@@ -483,28 +479,13 @@ private fun DetailContent(
                 Spacer(Modifier.height(22.dp))
             }
 
-            // Server selector tabs
-            if (bundle.episodes.size > 1) {
-                ScrollableTabRow(
-                    selectedTabIndex = state.selectedServer,
-                    containerColor = Color.Transparent,
-                    contentColor = Primary,
-                    divider = {},
-                    edgePadding = 0.dp
-                ) {
-                    bundle.episodes.forEachIndexed { index, ep ->
-                        Tab(
-                            selected = state.selectedServer == index,
-                            onClick = { onSelectServer(index) },
-                            text = {
-                                Text(
-                                    ep.serverName,
-                                    fontWeight = if (state.selectedServer == index) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
-                        )
-                    }
-                }
+            // Server selector tabs — show even if only 1 server, with audio track label
+            if (bundle.episodes.isNotEmpty()) {
+                ServerSelectorRow(
+                    servers = bundle.episodes,
+                    selectedIndex = state.selectedServer,
+                    onSelect = onSelectServer,
+                )
                 Spacer(Modifier.height(14.dp))
             }
 
@@ -531,7 +512,6 @@ private fun DetailContent(
                 }
                 Spacer(Modifier.height(14.dp))
 
-                // Episode chips — 4-column grid
                 val episodes = srv.serverData
                 val chunked = episodes.chunked(4)
 
@@ -545,7 +525,7 @@ private fun DetailContent(
                                 val isWatching = state.lastWatchedEpisode == ep.slug
                                 FilterChip(
                                     selected = isWatching,
-                                    onClick = { onPlay(ep.slug) },
+                                    onClick = { onPlay(ep.slug, state.selectedServer) },
                                     label = {
                                         Text(
                                             text = ep.name,
@@ -572,7 +552,6 @@ private fun DetailContent(
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            // Fill remaining space if row not full
                             repeat(4 - rowEps.size) {
                                 Spacer(modifier = Modifier.weight(1f))
                             }
@@ -582,6 +561,56 @@ private fun DetailContent(
             }
 
             Spacer(Modifier.height(120.dp))
+        }
+    }
+}
+
+@Composable
+private fun ServerSelectorRow(
+    servers: List<com.nguonc.stream.data.remote.dto.EpisodeServerDto>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "Nguồn phát (âm thanh)",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(10.dp))
+        // Use FlowRow-like behavior via ScrollableTabRow
+        ScrollableTabRow(
+            selectedTabIndex = selectedIndex.coerceIn(0, servers.lastIndex),
+            containerColor = Color.Transparent,
+            contentColor = Primary,
+            divider = {},
+            edgePadding = 0.dp
+        ) {
+            servers.forEachIndexed { index, srv ->
+                val accent = serverAccentColor(srv.serverName)
+                Tab(
+                    selected = selectedIndex == index,
+                    onClick = { onSelect(index) },
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(accent)
+                            )
+                            Text(
+                                srv.serverName.ifBlank { "Server ${index + 1}" },
+                                fontWeight = if (selectedIndex == index) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selectedIndex == index) accent else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
 }
