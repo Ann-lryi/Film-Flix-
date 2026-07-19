@@ -59,9 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImagePainter
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
+import coil.compose.AsyncImage
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.ui.theme.AccentCyan
 import com.nguonc.stream.ui.theme.AccentViolet
@@ -142,7 +140,7 @@ fun MoviePosterCard(
                 )
         ) {
             Box {
-                AppAsyncImage(
+                AsyncImage(
                     model = movie.posterUrl,
                     contentDescription = movie.name,
                     modifier = Modifier
@@ -177,7 +175,7 @@ fun MoviePosterCard(
                         .background(AppGradients.CardBottomOverlay)
                 )
 
-                // Top badges row
+                // Top badges row — only quality badge (MỚI removed per user request)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -188,9 +186,6 @@ fun MoviePosterCard(
                 ) {
                     movie.quality?.takeIf { it.isNotBlank() }?.let {
                         PremiumQualityBadge(text = it.uppercase())
-                    }
-                    if (movie.year >= 2024) {
-                        NewBadge()
                     }
                 }
 
@@ -441,7 +436,7 @@ fun HeroBannerCarousel(
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Backdrop
-                    AppAsyncImage(
+                    AsyncImage(
                         model = movie.thumbUrl.ifBlank { movie.posterUrl },
                         contentDescription = movie.name,
                         modifier = Modifier.fillMaxSize(),
@@ -957,69 +952,6 @@ fun PremiumPrimaryButton(
         Text(
             text = text,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black)
-        )
-    }
-}
-
-// ======================================================
-// IMAGE — AsyncImage có placeholder/error rõ ràng
-// ======================================================
-
-/**
- * Thay thế trực tiếp cho `coil.compose.AsyncImage` trong toàn app — cùng tham số, chỉ khác là
- * có placeholder shimmer lúc đang tải và icon báo lỗi rõ ràng khi ảnh hỏng/không tải được,
- * thay vì để lại khoảng trống im lặng như AsyncImage mặc định (trông giống app bị lỗi).
- */
-@Composable
-fun AppAsyncImage(
-    model: Any?,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop,
-) {
-    SubcomposeAsyncImage(
-        model = model,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
-    ) {
-        when (painter.state) {
-            is AsyncImagePainter.State.Loading -> ImagePlaceholderShimmer()
-            is AsyncImagePainter.State.Error -> ImageErrorFallback()
-            else -> SubcomposeAsyncImageContent()
-        }
-    }
-}
-
-@Composable
-private fun ImagePlaceholderShimmer() {
-    val transition = rememberInfiniteTransition(label = "imgPlaceholderShimmer")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.6f,
-        animationSpec = infiniteRepeatable(animation = Motion.drift(900), repeatMode = RepeatMode.Reverse),
-        label = "imgPlaceholderAlpha"
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha))
-    )
-}
-
-@Composable
-private fun ImageErrorFallback() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = FilmFlixIcons.CloudOffOutline,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-            modifier = Modifier.size(26.dp)
         )
     }
 }

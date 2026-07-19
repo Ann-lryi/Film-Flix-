@@ -30,6 +30,12 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Setup Gradle (cache dependencies giữa các lần build)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+
       - name: Kiểm tra môi trường & Cấp quyền thực thi Gradlew
         run: |
           java -version

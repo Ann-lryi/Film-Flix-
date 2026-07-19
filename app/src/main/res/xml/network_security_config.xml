@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Cho phép cleartext (HTTP) traffic cho các domain stream player.
+         JW player từ streamc.xyz / kkphimplayer có thể trả video stream qua HTTP. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">streamc.xyz</domain>
+        <domain includeSubdomains="true">kkphimplayer.com</domain>
+        <domain includeSubdomains="true">kkphimplayer6.com</domain>
+        <domain includeSubdomains="true">kkphimplayer7.com</domain>
+        <domain includeSubdomains="true">phim1280.tv</domain>
+        <domain includeSubdomains="true">phimapi.com</domain>
+        <domain includeSubdomains="true">phimimg.com</domain>
+        <domain includeSubdomains="true">phim.nguonc.com</domain>
+    </domain-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

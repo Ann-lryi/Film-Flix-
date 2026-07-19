@@ -51,10 +51,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.nguonc.stream.data.local.FavoriteEntity
 import com.nguonc.stream.data.local.HistoryEntity
 import com.nguonc.stream.data.remote.dto.MovieItemDto
-import com.nguonc.stream.ui.components.AppAsyncImage
 import com.nguonc.stream.ui.components.EmptyBox
 import com.nguonc.stream.ui.components.MoviePosterCard
 import com.nguonc.stream.ui.theme.AppGradients
@@ -73,7 +73,7 @@ import java.util.Locale
 @Composable
 fun LibraryScreen(
     onMovieClick: (String) -> Unit,
-    onResumeClick: (slug: String, episodeSlug: String, serverIndex: Int) -> Unit,
+    onResumeClick: (slug: String, episodeSlug: String) -> Unit,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -211,7 +211,7 @@ private fun FavoriteTab(
     }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 138.dp),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp, bottom = 130.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         modifier = Modifier.fillMaxSize()
@@ -237,7 +237,7 @@ private fun FavoriteTab(
 @Composable
 private fun HistoryTab(
     history: List<HistoryEntity>,
-    onResumeClick: (slug: String, episodeSlug: String, serverIndex: Int) -> Unit,
+    onResumeClick: (slug: String, episodeSlug: String) -> Unit,
     onMovieClick: (String) -> Unit,
     onRemove: (String) -> Unit,
 ) {
@@ -246,14 +246,14 @@ private fun HistoryTab(
         return
     }
     LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp, bottom = 130.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(history, key = { it.slug }) { item ->
             HistoryRow(
                 item = item,
-                onResume = { onResumeClick(item.slug, item.episodeSlug, item.serverIndex) },
+                onResume = { onResumeClick(item.slug, item.episodeSlug) },
                 onClick = { onMovieClick(item.slug) },
                 onRemove = { onRemove(item.slug) },
             )
@@ -296,7 +296,7 @@ private fun HistoryRow(
             modifier = Modifier.padding(12.dp)
         ) {
             Box {
-                AppAsyncImage(
+                AsyncImage(
                     model = item.posterUrl,
                     contentDescription = item.name,
                     modifier = Modifier
@@ -365,28 +365,42 @@ private fun HistoryRow(
 
                 Spacer(Modifier.height(10.dp))
 
-                val progress = remember(item.positionMs, item.durationMs) {
-                    if (item.durationMs <= 0L) null
-                    else (item.positionMs.toFloat() / item.durationMs.toFloat()).coerceIn(0f, 1f)
+                // Estimate progress: positionMs / assumed-duration
+                // We don't store duration, so we estimate based on typical runtime:
+                //  - < 30min → likely cartoon short
+                //  - 30-90min → movie
+                //  - > 90min → long movie or drama episode
+                // Cap progress visually at 95% to indicate "in progress" vs "done".
+                val progress = remember(item.positionMs) {
+                    val minutes = item.positionMs / 60_000
+                    // Heuristic: assume episode length scales with minutes-watched.
+                    val assumedTotalMin = when {
+                        minutes < 5 -> 30.0
+                        minutes < 30 -> 45.0
+                        minutes < 60 -> 100.0
+                        minutes < 120 -> 150.0
+                        else -> 200.0
+                    }
+                    val ratio = (item.positionMs / 60_000.0) / assumedTotalMin
+                    ratio.coerceIn(0.02, 0.95).toFloat()
                 }
-                if (progress != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(progress)
                             .height(5.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .height(5.dp)
-                                .clip(CircleShape)
-                                .background(AppGradients.ProgressGradient)
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
+                            .background(AppGradients.ProgressGradient)
+                    )
                 }
+
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = "Xem cuối: ${formatTime(item.updatedAt)}",
                     style = MaterialTheme.typography.labelSmall,

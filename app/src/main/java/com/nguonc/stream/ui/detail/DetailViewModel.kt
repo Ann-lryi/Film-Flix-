@@ -21,13 +21,12 @@ data class DetailUiState(
     val isFavorite: Boolean = false,
     val selectedServer: Int = 0,
     val lastWatchedEpisode: String? = null,
-    val lastWatchedServerIndex: Int = 0,
 )
 
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     private val repository: MovieRepository,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val slug: String = checkNotNull(savedStateHandle["slug"])
@@ -35,10 +34,10 @@ class DetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DetailUiState())
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()
 
-    /** True khi người dùng đã tự tay bấm tab server — sau đó không tự động ghi đè theo lịch sử nữa. */
-    private var hasUserSelectedServer = false
-
     init {
+        // Restore selected server across configuration changes / process death
+        val savedServer = savedStateHandle.get<Int>("selectedServer") ?: 0
+        _uiState.update { it.copy(selectedServer = savedServer) }
         load()
         viewModelScope.launch {
             repository.observeIsFavorite(slug).collect { isFav ->
@@ -47,15 +46,7 @@ class DetailViewModel @Inject constructor(
         }
         viewModelScope.launch {
             repository.getHistory(slug)?.let { history ->
-                _uiState.update {
-                    it.copy(
-                        lastWatchedEpisode = history.episodeSlug,
-                        lastWatchedServerIndex = history.serverIndex,
-                        // Tự mở đúng tab server đã xem dở (Vietsub/Lồng Tiếng...) — nhưng không
-                        // ghi đè nếu người dùng đã lỡ tay chọn tab khác trong lúc chờ load.
-                        selectedServer = if (hasUserSelectedServer) it.selectedServer else history.serverIndex,
-                    )
-                }
+                _uiState.update { it.copy(lastWatchedEpisode = history.episodeSlug) }
             }
         }
     }
@@ -65,7 +56,12 @@ class DetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             runCatching { repository.getMovieDetail(slug) }
                 .onSuccess { bundle ->
-                    _uiState.update { it.copy(isLoading = false, bundle = bundle) }
+                    // Clamp selectedServer to valid range
+                    val clamped = _uiState.value.selectedServer
+                        .coerceIn(0, (bundle.episodes.size - 1).coerceAtLeast(0))
+                    _uiState.update {
+                        it.copy(isLoading = false, bundle = bundle, selectedServer = clamped)
+                    }
                 }
                 .onFailure { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.readableMessage()) }
@@ -79,7 +75,9 @@ class DetailViewModel @Inject constructor(
     }
 
     fun selectServer(index: Int) {
-        hasUserSelectedServer = true
-        _uiState.update { it.copy(selectedServer = index) }
+        val max = (_uiState.value.bundle?.episodes?.size ?: 1) - 1
+        val safe = index.coerceIn(0, max.coerceAtLeast(0))
+        savedStateHandle["selectedServer"] = safe
+        _uiState.update { it.copy(selectedServer = safe) }
     }
 }

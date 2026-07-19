@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import com.nguonc.stream.data.remote.PhimApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,14 +32,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -127,12 +125,6 @@ fun HomeScreen(
                     } else {
                         // Hero skeleton
                         item { ShimmerHero() }
-                    }
-
-                    item {
-                        QuickFilterRow(
-                            onSelect = { type, title -> onSeeMore(type, title) }
-                        )
                     }
 
                     items(state.sections, key = { it.listType }) { section ->
@@ -259,128 +251,39 @@ private fun PremiumHomeTopBar(onSearchClick: () -> Unit) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Search pill — premium pressable
-            val searchInteraction = remember { MutableInteractionSource() }
-            Surface(
-                shape = AppShapes.Pill,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .height(44.dp)
-                    .clip(AppShapes.Pill)
-                    .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Icon(
-                        FilmFlixIcons.SearchOutline, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        "Tìm kiếm",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // Notification bell with badge dot
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        FilmFlixIcons.BellOutline, null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(9.dp)
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Primary)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Quick filter chips — stateful, calls onSeeMore with the appropriate list type.
- */
-@Composable
-private fun QuickFilterRow(onSelect: (listType: String, title: String) -> Unit) {
-    data class Filter(val label: String, val icon: ImageVector, val listType: String, val title: String)
-
-    val filters = remember {
-        listOf(
-            Filter("Phim mới", FilmFlixIcons.BoltFilled, PhimApi.TYPE_NEW, "Phim mới"),
-            Filter("Phim bộ", FilmFlixIcons.PlayFilled, PhimApi.TYPE_SERIES, "Phim bộ"),
-            Filter("Phim lẻ", FilmFlixIcons.PlayFilled, PhimApi.TYPE_MOVIE, "Phim lẻ"),
-            Filter("Hoạt hình", FilmFlixIcons.PlayFilled, PhimApi.TYPE_CARTOON, "Hoạt hình"),
-            Filter("TV Shows", FilmFlixIcons.PlayFilled, PhimApi.TYPE_TV_SHOW, "TV Shows"),
+        // Search pill — premium pressable, full-width version on the right
+        val searchInteraction = remember { MutableInteractionSource() }
+        val isPressed by searchInteraction.collectIsPressedAsState()
+        val searchScale by androidx.compose.animation.core.animateFloatAsState(
+            targetValue = if (isPressed) Motion.PressScale else 1f,
+            animationSpec = Motion.PressSpring,
+            label = "searchPillScale"
         )
-    }
-    var selectedIndex by rememberSaveable { mutableStateOf(0) }
-
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        items(filters.size) { i ->
-            val filter = filters[i]
-            val selected = i == selectedIndex
-            val interaction = remember { MutableInteractionSource() }
-
-            Surface(
-                shape = AppShapes.Pill,
-                color = if (selected) Primary else MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (selected) Primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier
-                    .clip(AppShapes.Pill)
-                    .clickable(interactionSource = interaction, indication = null) {
-                        selectedIndex = i
-                        onSelect(filter.listType, filter.title)
-                    }
-                    .then(
-                        if (selected) Modifier.glowShadow(
-                            color = Primary,
-                            shape = AppShapes.Pill,
-                            glowRadius = 10.dp,
-                            elevation = Elevation.XS
-                        ) else Modifier
-                    )
+        Surface(
+            shape = AppShapes.Pill,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+            modifier = Modifier
+                .height(44.dp)
+                .scale(searchScale)
+                .clip(AppShapes.Pill)
+                .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        filter.icon, null,
-                        tint = if (selected) Color.White else Primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = filter.label,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                Icon(
+                    FilmFlixIcons.SearchOutline, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    "Tìm kiếm",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -389,23 +292,14 @@ private fun QuickFilterRow(onSelect: (listType: String, title: String) -> Unit) 
 // Avoids extra import in the function above
 private typealias ImageVector = androidx.compose.ui.graphics.vector.ImageVector
 
-private fun mapTitle(original: String): String {
-    return when {
-        original.contains("mới", true) -> "Mới cập nhật"
-        original.contains("bộ", true) -> "Phim bộ hot"
-        original.contains("lẻ", true) -> "Phim lẻ đặc sắc"
-        original.contains("hoạt hình", true) -> "Hoạt hình đỉnh cao"
-        else -> original
-    }
-}
+private fun mapTitle(original: String): String = original
 
 private fun mapSubtitle(type: String): String {
     return when (type) {
-        PhimApi.TYPE_NEW -> "Cập nhật liên tục mỗi giờ"
-        PhimApi.TYPE_SERIES -> "Cày phim không ngừng nghỉ"
-        PhimApi.TYPE_MOVIE -> "Điện ảnh đỉnh cao"
-        PhimApi.TYPE_CARTOON -> "Thế giới anime & cartoon"
-        PhimApi.TYPE_TV_SHOW -> "Chương trình truyền hình đặc sắc"
+        "phim-moi-cap-nhat" -> "Cập nhật liên tục mỗi giờ"
+        "phim-bo" -> "Cày phim không ngừng nghỉ"
+        "phim-le" -> "Điện ảnh đỉnh cao"
+        "hoat-hinh" -> "Thế giới anime & cartoon"
         else -> "Tuyển chọn cho bạn"
     }
 }

@@ -237,3 +237,35 @@ object AppGradients {
 
 // Extra surface helpers
 val DarkSurfaceGlassAlt = DarkSurfaceVariant.copy(alpha = 0.55f)
+
+// ======================================================
+// PLAYER OVERLAY — Cinematic dark glassmorphism tokens
+// ======================================================
+val PlayerScrimTop = Color.Black.copy(alpha = 0.78f)
+val PlayerScrimBottom = Color.Black.copy(alpha = 0.92f)
+val PlayerScrimSide = Color.Black.copy(alpha = 0.40f)
+val PlayerGlassSurface = Color.Black.copy(alpha = 0.55f)
+val PlayerGlassBorder = Color.White.copy(alpha = 0.18f)
+val PlayerIconActive = Color.White
+val PlayerIconIdle = Color.White.copy(alpha = 0.72f)
+val PlayerIconDisabled = Color.White.copy(alpha = 0.36f)
+val PlayerSeekBarTrack = Color.White.copy(alpha = 0.22f)
+val PlayerSeekBarBuffered = Color.White.copy(alpha = 0.42f)
+val PlayerTimeText = Color.White.copy(alpha = 0.88f)
+
+// Server chip palette — different colors per audio track type
+val ServerChipVietsub = Primary
+val ServerChipThuyetMinh = AccentViolet
+val ServerChipLongTieng = AccentCyan
+val ServerChipDefault = AccentGreen
+
+/** Pick a brand color for an audio server based on its name. */
+fun serverAccentColor(name: String): Color {
+    val n = name.lowercase()
+    return when {
+        n.contains("vietsub") || n.contains("sub") -> ServerChipVietsub
+        n.contains("thuyết minh") || n.contains("thuyet minh") || n.contains("tm") -> ServerChipThuyetMinh
+        n.contains("lồng tiếng") || n.contains("long tieng") || n.contains("lt") -> ServerChipLongTieng
+        else -> ServerChipDefault
+    }
+}

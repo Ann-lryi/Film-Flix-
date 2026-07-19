@@ -10,14 +10,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -42,11 +39,6 @@ class SearchViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
-
-    /** Lịch sử tìm kiếm THẬT của người dùng (Room) — thay cho danh sách giả trước đây. */
-    val recentSearches: StateFlow<List<String>> = repository.observeRecentSearches()
-        .map { list -> list.map { it.query } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val queryFlow = MutableStateFlow("")
 
@@ -77,14 +69,6 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch { performSearch(state.query, state.currentPage + 1) }
     }
 
-    fun removeRecentSearch(query: String) {
-        viewModelScope.launch { repository.removeRecentSearch(query) }
-    }
-
-    fun clearRecentSearches() {
-        viewModelScope.launch { repository.clearRecentSearches() }
-    }
-
     private suspend fun performSearch(query: String, page: Int) {
         if (query.isBlank()) {
             _uiState.update { SearchUiState(query = it.query) }
@@ -105,11 +89,6 @@ class SearchViewModel @Inject constructor(
                         isLoadingMore = false,
                         searched = true,
                     )
-                }
-                // Chỉ lưu vào lịch sử khi query đã "chốt" (debounce xong) và có kết quả thật —
-                // tránh lưu từng ký tự gõ dở như "c", "co", "con"...
-                if (page == 1 && result.items.isNotEmpty()) {
-                    repository.addRecentSearch(query)
                 }
             }
             .onFailure { e ->

@@ -33,18 +33,7 @@ data class HistoryEntity(
     val episodeSlug: String,
     val episodeName: String,
     val positionMs: Long,
-    /** Tổng thời lượng tập phim tại thời điểm lưu (ms). 0 nếu chưa biết — dùng để tính % xem thật thay vì hardcode. */
-    val durationMs: Long = 0L,
-    /** Index của server (Vietsub/Lồng Tiếng/...) trong danh sách `episodes` trả về từ API — cần để resume đúng track âm thanh. */
-    val serverIndex: Int = 0,
     val updatedAt: Long = System.currentTimeMillis(),
-)
-
-/** Từ khoá tìm kiếm gần đây của người dùng — thay thế danh sách giả hard-code trong SearchScreen. */
-@Entity(tableName = "recent_searches")
-data class RecentSearchEntity(
-    @PrimaryKey val query: String,
-    val searchedAt: Long = System.currentTimeMillis(),
 )
 
 // ---------- DAOs ----------
@@ -82,30 +71,14 @@ interface HistoryDao {
     suspend fun clearAll()
 }
 
-@Dao
-interface RecentSearchDao {
-    @Query("SELECT * FROM recent_searches ORDER BY searchedAt DESC LIMIT 10")
-    fun observeRecent(): Flow<List<RecentSearchEntity>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(entity: RecentSearchEntity)
-
-    @Query("DELETE FROM recent_searches WHERE query = :query")
-    suspend fun delete(query: String)
-
-    @Query("DELETE FROM recent_searches")
-    suspend fun clearAll()
-}
-
 // ---------- Database ----------
 
 @Database(
-    entities = [FavoriteEntity::class, HistoryEntity::class, RecentSearchEntity::class],
-    version = 2,
+    entities = [FavoriteEntity::class, HistoryEntity::class],
+    version = 1,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun historyDao(): HistoryDao
-    abstract fun recentSearchDao(): RecentSearchDao
 }

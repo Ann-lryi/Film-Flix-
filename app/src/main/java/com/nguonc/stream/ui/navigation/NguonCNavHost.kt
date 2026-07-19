@@ -30,10 +30,18 @@ object Routes {
 
     fun detail(slug: String): String = "detail/$slug"
 
+    /**
+     * Player route now carries the selected server index so the player
+     * can load the correct audio track (Vietsub / Thuyết Minh / Lồng tiếng).
+     */
     fun player(slug: String, episodeSlug: String? = null, serverIndex: Int = 0): String {
-        val base = if (episodeSlug.isNullOrBlank()) "player/$slug" else "player/$slug?ep=${Uri.encode(episodeSlug)}"
-        val separator = if (base.contains("?")) "&" else "?"
-        return "$base${separator}server=$serverIndex"
+        val epPart = if (episodeSlug.isNullOrBlank()) "" else "?ep=${Uri.encode(episodeSlug)}"
+        val serverPart = if (serverIndex <= 0) {
+            if (epPart.isEmpty()) "" else "&server=$serverIndex"
+        } else {
+            if (epPart.isEmpty()) "?server=$serverIndex" else "&server=$serverIndex"
+        }
+        return "player/$slug$epPart$serverPart"
     }
 }
 
@@ -52,6 +60,7 @@ fun NguonCNavHost(navController: NavHostController) {
         composable(Routes.SEARCH) {
             SearchScreen(
                 onMovieClick = { slug -> navController.navigate(Routes.detail(slug)) },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.BROWSE) {
@@ -67,8 +76,8 @@ fun NguonCNavHost(navController: NavHostController) {
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onMovieClick = { slug -> navController.navigate(Routes.detail(slug)) },
-                onResumeClick = { slug, ep, serverIndex ->
-                    navController.navigate(Routes.player(slug, ep, serverIndex))
+                onResumeClick = { slug, ep ->
+                    navController.navigate(Routes.player(slug, ep))
                 },
             )
         }
@@ -125,8 +134,12 @@ fun NguonCNavHost(navController: NavHostController) {
             ),
         ) { backStackEntry ->
             val slug = backStackEntry.arguments?.getString("slug").orEmpty()
+            val ep = backStackEntry.arguments?.getString("ep")
+            val server = backStackEntry.arguments?.getInt("server") ?: 0
             PlayerScreen(
                 slug = slug,
+                requestedEpisodeSlug = ep,
+                requestedServerIndex = server,
                 onBack = { navController.popBackStack() },
             )
         }
