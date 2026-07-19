@@ -102,7 +102,6 @@ class PlayerViewModel @Inject constructor(
     val player: ExoPlayer by lazy {
         ExoPlayer.Builder(appContext).build().apply {
             playWhenReady = true
-            handleAudioBecomingNoisy = true
         }
     }
 

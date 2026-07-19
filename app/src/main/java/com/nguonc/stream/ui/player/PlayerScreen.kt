@@ -926,6 +926,7 @@ private fun PlayerSeekBar(
     bufferedMs: Long,
     onSeek: (Long) -> Unit,
 ) {
+    val coroutineScope = rememberCoroutineScope()
     val duration = if (durationMs > 0) durationMs else 0L
     val safeProgress = if (duration > 0) (positionMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
     val safeBuffered = if (duration > 0) (bufferedMs.toFloat() / duration).coerceIn(0f, 1f) else 0f
@@ -961,13 +962,13 @@ private fun PlayerSeekBar(
                         },
                         onDragCancel = {
                             isDragging = false
-                            dragProgress.snapTo(safeProgress)
+                            coroutineScope.launch { dragProgress.snapTo(safeProgress) }
                         },
                     ) { change, delta ->
                         change.consume()
                         val widthPx = size.width.toFloat().coerceAtLeast(1f)
                         val newProgress = (dragProgress.value + delta / widthPx).coerceIn(0f, 1f)
-                        dragProgress.snapTo(newProgress)
+                        coroutineScope.launch { dragProgress.snapTo(newProgress) }
                     }
                 }
                 .pointerInput(duration) {

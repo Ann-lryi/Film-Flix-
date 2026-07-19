@@ -1,9 +1,10 @@
 package com.nguonc.stream.ui.theme
 
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import com.nguonc.stream.R
-import androidx.compose.ui.text.font.Font
 
 /**
  * ───────────────────────────────────────────────────────────────────────────
@@ -28,18 +29,18 @@ private val provider = GoogleFont.Provider(
 
 /** Body / UI font — Outfit (modern geometric sans). */
 val AppFontFamily: FontFamily = FontFamily(
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.Normal),
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.Medium),
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.SemiBold),
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.Bold),
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.ExtraBold),
-    Font(GoogleFont("Outfit"), provider, androidx.compose.ui.text.font.FontWeight.Black),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.Bold),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.ExtraBold),
+    Font(googleFont = GoogleFont("Outfit"), fontProvider = provider, weight = FontWeight.Black),
 )
 
 /** Display / hero font — Sora (characterful geometric). */
 val AppDisplayFontFamily: FontFamily = FontFamily(
-    Font(GoogleFont("Sora"), provider, androidx.compose.ui.text.font.FontWeight.SemiBold),
-    Font(GoogleFont("Sora"), provider, androidx.compose.ui.text.font.FontWeight.Bold),
-    Font(GoogleFont("Sora"), provider, androidx.compose.ui.text.font.FontWeight.ExtraBold),
-    Font(GoogleFont("Sora"), provider, androidx.compose.ui.text.font.FontWeight.Black),
+    Font(googleFont = GoogleFont("Sora"), fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = GoogleFont("Sora"), fontProvider = provider, weight = FontWeight.Bold),
+    Font(googleFont = GoogleFont("Sora"), fontProvider = provider, weight = FontWeight.ExtraBold),
+    Font(googleFont = GoogleFont("Sora"), fontProvider = provider, weight = FontWeight.Black),
 )
