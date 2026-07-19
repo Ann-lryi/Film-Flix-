@@ -1526,7 +1526,6 @@ private fun EmbedWebViewPlayer(
     isLocked: Boolean,
     onToggleControls: () -> Unit,
 ) {
-    val context = LocalContext.current
     AndroidView(
         factory = { ctx ->
             android.webkit.WebView(ctx).apply {

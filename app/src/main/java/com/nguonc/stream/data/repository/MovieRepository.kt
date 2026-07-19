@@ -219,8 +219,8 @@ class MovieRepository @Inject constructor(
         name = name,
         originName = originName,
         slug = slug,
-        posterUrl = posterUrl.normalizeImageUrl(),
-        thumbUrl = thumbUrl.normalizeImageUrl(),
+        posterUrl = posterUrl.absoluteImageUrl(),
+        thumbUrl = thumbUrl.absoluteImageUrl(),
         year = 0,                            // NguoncApi không có year ở item, có trong detail
         quality = quality,
         episodeCurrent = currentEpisode,
@@ -250,8 +250,8 @@ class MovieRepository @Inject constructor(
             content = content,
             type = "",  // NguoncApi không trả type
             status = "",
-            thumbUrl = thumbUrl.normalizeImageUrl(),
-            posterUrl = posterUrl.normalizeImageUrl(),
+            thumbUrl = thumbUrl.absoluteImageUrl(),
+            posterUrl = posterUrl.absoluteImageUrl(),
             trailerUrl = "",
             time = time,
             episodeCurrent = episodeCurrent,

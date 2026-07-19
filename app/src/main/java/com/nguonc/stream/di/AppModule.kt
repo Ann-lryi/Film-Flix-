@@ -13,7 +13,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
@@ -23,7 +22,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
 
-// Qualifier để phân biệt 2 OkHttpClient (nếu cần custom khác nhau)
+// Qualifier để phân biệt 2 Retrofit instance (nếu cần dùng sau này)
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class PhimApiClient
