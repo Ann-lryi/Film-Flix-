@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -67,6 +68,7 @@ fun HomeScreen(
     onMovieClick: (String) -> Unit,
     onSeeMore: (listType: String, title: String) -> Unit,
     onSearchClick: () -> Unit,
+    onDebugLogsClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -102,7 +104,10 @@ fun HomeScreen(
         )
 
         Column(modifier = Modifier.fillMaxSize()) {
-            PremiumHomeTopBar(onSearchClick = onSearchClick)
+            PremiumHomeTopBar(
+                onSearchClick = onSearchClick,
+                onDebugLogsClick = onDebugLogsClick,
+            )
 
             PullToRefreshBox(
                 isRefreshing = state.isRefreshing,
@@ -202,14 +207,18 @@ fun HomeScreen(
 }
 
 @Composable
-private fun PremiumHomeTopBar(onSearchClick: () -> Unit) {
+private fun PremiumHomeTopBar(
+    onSearchClick: () -> Unit,
+    onDebugLogsClick: () -> Unit = {},
+) {
     Row(
         modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Logo — squircle-ish box with gradient + glow
+            // Logo — squircle-ish box with gradient + glow.
+            // LONG-PRESS logo để mở Debug Logs (hidden entry cho developer/QA).
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -221,7 +230,11 @@ private fun PremiumHomeTopBar(onSearchClick: () -> Unit) {
                         glowRadius = 14.dp,
                         elevation = Elevation.S
                     )
-                    .topHighlight(),
+                    .topHighlight()
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClick = onDebugLogsClick,
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

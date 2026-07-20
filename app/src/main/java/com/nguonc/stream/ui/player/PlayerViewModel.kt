@@ -12,6 +12,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.nguonc.stream.data.remote.dto.EpisodeDto
 import com.nguonc.stream.data.remote.dto.EpisodeServerDto
 import com.nguonc.stream.data.repository.MovieRepository
+import com.nguonc.stream.debug.AppLogger
+import com.nguonc.stream.debug.LogTags
 import com.nguonc.stream.ui.home.readableMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -125,25 +127,39 @@ class PlayerViewModel @Inject constructor(
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
+            AppLogger.i(LogTags.PLAYER, "onIsPlayingChanged(isPlaying=$isPlaying)")
             _uiState.update { it.copy(isPlaying = isPlaying) }
             if (isPlaying) startProgressSaver() else stopProgressSaver()
         }
 
         override fun onPlaybackStateChanged(state: Int) {
+            val stateName = when (state) {
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                Player.STATE_IDLE -> "IDLE"
+                else -> "UNKNOWN($state)"
+            }
+            AppLogger.i(LogTags.PLAYER, "onPlaybackStateChanged(state=$stateName)")
             when (state) {
                 Player.STATE_BUFFERING -> _uiState.update { it.copy(isBuffering = true) }
-                Player.STATE_READY -> _uiState.update { it.copy(isBuffering = false, error = null) }
+                Player.STATE_READY -> {
+                    _uiState.update { it.copy(isBuffering = false, error = null) }
+                    AppLogger.success(LogTags.PLAYER, "Player READY — video should be playing")
+                }
                 Player.STATE_ENDED -> {
+                    AppLogger.i(LogTags.PLAYER, "Episode ENDED — auto-advancing to next episode")
                     // Tự chuyển tập kế tiếp
                     _uiState.value.nextEpisode?.let { nextEp ->
                         switchEpisode(nextEp, autoPlay = true)
                     }
                 }
-                Player.STATE_IDLE -> Unit
+                Player.STATE_IDLE -> AppLogger.w(LogTags.PLAYER, "Player IDLE — no media loaded")
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            AppLogger.e(LogTags.PLAYER, "onPlayerError: errorCode=${error.errorCodeName}, msg=${error.message}", error)
             _uiState.update {
                 it.copy(
                     isBuffering = false,
@@ -160,12 +176,23 @@ class PlayerViewModel @Inject constructor(
 
     fun load() {
         viewModelScope.launch {
+            AppLogger.i(LogTags.PLAYER_VM, "=== PlayerViewModel.load() ===")
+            AppLogger.i(LogTags.PLAYER_VM, "slug=\"$slug\", requestedEpisode=\"$requestedEpisode\", requestedServer=$requestedServer")
             _uiState.update { it.copy(isLoading = true, error = null) }
             runCatching {
                 val detail = repository.getMovieDetail(slug)
                 val history = repository.getHistory(slug)
+                if (history != null) {
+                    AppLogger.i(
+                        LogTags.PLAYER_VM,
+                        "History found: epSlug=${history.episodeSlug}, epName=${history.episodeName}, positionMs=${history.positionMs}"
+                    )
+                } else {
+                    AppLogger.d(LogTags.PLAYER_VM, "No history for this movie")
+                }
                 detail to history
             }.onSuccess { (detail, history) ->
+                AppLogger.success(LogTags.PLAYER_VM, "Detail loaded: \"${detail.movie.name}\"")
                 // Repository đã lọc các server không có link m3u8 hợp lệ.
                 // Detail và Player dùng cùng một danh sách server, index khớp 1:1.
                 val servers: List<ServerGroup> = detail.episodes
@@ -178,23 +205,48 @@ class PlayerViewModel @Inject constructor(
                     }
 
                 if (servers.isEmpty()) {
+                    AppLogger.e(LogTags.PLAYER_VM, "No valid servers — error: \"Phim chưa có nguồn phát\"")
                     _uiState.update {
                         it.copy(isLoading = false, error = "Phim chưa có nguồn phát")
                     }
                     return@onSuccess
                 }
 
+                AppLogger.i(
+                    LogTags.PLAYER_VM,
+                    "${servers.size} servers available: ${servers.joinToString { "\"${it.name}\"(${it.episodes.size} eps)" }}"
+                )
+
                 // Chọn server theo requestedServer, clamp vào khoảng hợp lệ
                 val targetServerIdx = requestedServer.coerceIn(0, servers.lastIndex)
                 val server = servers[targetServerIdx]
+                AppLogger.i(
+                    LogTags.PLAYER_VM,
+                    "Selected server #${targetServerIdx + 1}=\"${server.name}\" (requestedServer=$requestedServer, clamped to $targetServerIdx)"
+                )
 
                 // Chọn tập: theo requestedEpisode → history → đầu
                 val targetEpisode = server.episodes.firstOrNull { it.slug == requestedEpisode }
                     ?: server.episodes.firstOrNull { it.slug == history?.episodeSlug }
                     ?: server.episodes.first()
+                AppLogger.i(
+                    LogTags.PLAYER_VM,
+                    "Selected episode: name=\"${targetEpisode.name}\", slug=\"${targetEpisode.slug}\""
+                )
+                AppLogger.d(
+                    LogTags.PLAYER_VM,
+                    "Episode embed URL: ${targetEpisode.linkEmbed}"
+                )
+                AppLogger.d(
+                    LogTags.PLAYER_VM,
+                    "Episode m3u8 URL: ${targetEpisode.linkM3u8.ifBlank { "(empty — will use WebView)" }}"
+                )
 
                 resumePositionMs =
                     if (history?.episodeSlug == targetEpisode.slug) history.positionMs else 0L
+                if (resumePositionMs > 0) {
+                    AppLogger.i(LogTags.PLAYER_VM, "Resume position: ${resumePositionMs}ms")
+                }
 
                 _uiState.update {
                     it.copy(
@@ -210,8 +262,10 @@ class PlayerViewModel @Inject constructor(
                         currentEpisodeSlug = targetEpisode.slug,
                     )
                 }
+                AppLogger.success(LogTags.PLAYER_VM, "State updated, calling play()...")
                 play(targetEpisode, resumePositionMs)
             }.onFailure { e ->
+                AppLogger.e(LogTags.PLAYER_VM, "load() FAILED: ${e.message}", e)
                 _uiState.update { it.copy(isLoading = false, error = e.readableMessage()) }
             }
         }
@@ -246,10 +300,19 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun play(episode: EpisodeDto, startPositionMs: Long) {
+        AppLogger.i(
+            LogTags.PLAYER_VM,
+            "▶ play() — episode=\"${episode.name}\", slug=\"${episode.slug}\", startPos=${startPositionMs}ms"
+        )
         // Nếu chỉ có embed URL (NguoncApi), ExoPlayer không play được.
         // PlayerScreen sẽ dùng WebView để load embed URL.
         // Ở đây chỉ set state + skip ExoPlayer setup.
         if (episode.linkM3u8.isBlank()) {
+            AppLogger.w(
+                LogTags.PLAYER_VM,
+                "⚠ linkM3u8 is BLANK → using WebView mode (embed URL)"
+            )
+            AppLogger.d(LogTags.PLAYER_VM, "  embed URL: ${episode.linkEmbed}")
             // Embed mode: đánh dấu isPlaying = true để UI ẩn loading
             _uiState.update {
                 it.copy(
@@ -260,12 +323,15 @@ class PlayerViewModel @Inject constructor(
                     bufferedMs = 0L,
                 )
             }
+            AppLogger.success(LogTags.PLAYER_VM, "WebView mode state set — PlayerScreen should show WebView")
             return
         }
+        AppLogger.i(LogTags.PLAYER_VM, "Using ExoPlayer mode with m3u8: ${episode.linkM3u8}")
         val mediaItem = MediaItem.fromUri(episode.linkM3u8)
         player.setMediaItem(mediaItem, startPositionMs)
         player.prepare()
         player.playWhenReady = true
+        AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared + playWhenReady=true")
     }
 
     fun togglePlayPause() {

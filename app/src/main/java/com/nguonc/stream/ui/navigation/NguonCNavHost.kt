@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.nguonc.stream.debug.DebugLogScreen
 import com.nguonc.stream.ui.browse.BrowseScreen
 import com.nguonc.stream.ui.detail.DetailScreen
 import com.nguonc.stream.ui.home.HomeScreen
@@ -24,6 +25,7 @@ object Routes {
     const val GRID = "grid/{source}/{key}/{title}"
     const val DETAIL = "detail/{slug}"
     const val PLAYER = "player/{slug}?ep={ep}&server={server}"
+    const val DEBUG_LOG = "debug_log"
 
     fun grid(source: MovieListSource, key: String, title: String): String =
         "grid/${source.name.lowercase()}/${Uri.encode(key)}/${Uri.encode(title)}"
@@ -55,6 +57,7 @@ fun NguonCNavHost(navController: NavHostController) {
                     navController.navigate(Routes.grid(MovieListSource.LIST, type, title))
                 },
                 onSearchClick = { navController.navigate(Routes.SEARCH) },
+                onDebugLogsClick = { navController.navigate(Routes.DEBUG_LOG) },
             )
         }
         composable(Routes.SEARCH) {
@@ -140,6 +143,11 @@ fun NguonCNavHost(navController: NavHostController) {
                 slug = slug,
                 requestedEpisodeSlug = ep,
                 requestedServerIndex = server,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.DEBUG_LOG) {
+            DebugLogScreen(
                 onBack = { navController.popBackStack() },
             )
         }

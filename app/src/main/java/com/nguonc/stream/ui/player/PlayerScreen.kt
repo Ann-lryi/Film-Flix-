@@ -93,6 +93,8 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.nguonc.stream.data.remote.dto.EpisodeDto
+import com.nguonc.stream.debug.AppLogger
+import com.nguonc.stream.debug.LogTags
 import com.nguonc.stream.ui.components.ErrorBox
 import com.nguonc.stream.ui.components.LoadingBox
 import com.nguonc.stream.ui.theme.AccentCyan
@@ -208,12 +210,15 @@ fun PlayerScreen(
             else -> {
                 // Chọn player: WebView (cho embed URL từ NguoncApi) hoặc ExoPlayer (cho m3u8)
                 if (state.useWebView) {
+                    AppLogger.i(LogTags.PLAYER, "PlayerScreen: rendering EmbedWebViewPlayer (useWebView=true)")
+                    AppLogger.i(LogTags.PLAYER, "  embedUrl = ${state.currentPlayUrl}")
                     EmbedWebViewPlayer(
                         embedUrl = state.currentPlayUrl,
                         isLocked = state.isLocked,
                         onToggleControls = viewModel::toggleControls,
                     )
                 } else {
+                    AppLogger.i(LogTags.PLAYER, "PlayerScreen: rendering ExoPlayer (useWebView=false)")
                     val player = remember { viewModel.player }
                     AndroidView(
                         factory = { ctx ->
@@ -1565,11 +1570,21 @@ private fun EmbedWebViewPlayer(
                         request: android.webkit.WebResourceRequest?,
                     ): Boolean = false
 
+                    override fun onPageStarted(
+                        view: android.webkit.WebView?,
+                        url: String?,
+                        favicon: android.graphics.Bitmap?,
+                    ) {
+                        super.onPageStarted(view, url, favicon)
+                        AppLogger.i(LogTags.WEBVIEW, "onPageStarted: $url")
+                    }
+
                     override fun onReceivedSslError(
                         view: android.webkit.WebView?,
                         handler: android.webkit.SslErrorHandler?,
                         error: android.net.http.SslError?,
                     ) {
+                        AppLogger.w(LogTags.WEBVIEW, "SSL error (bypassing): ${error?.primaryError} — handler.proceed()")
                         // Bypass SSL errors cho player server (self-signed certs)
                         handler?.proceed()
                     }
@@ -1579,11 +1594,25 @@ private fun EmbedWebViewPlayer(
                         request: android.webkit.WebResourceRequest?,
                         error: android.webkit.WebResourceError?,
                     ) {
-                        android.util.Log.e(
-                            "EmbedWebView",
-                            "Error loading ${request?.url}: ${error?.description}"
+                        val url = request?.url?.toString() ?: "?"
+                        AppLogger.e(
+                            LogTags.WEBVIEW,
+                            "onReceivedError: url=$url, errorCode=${error?.errorCode}, desc=${error?.description}"
                         )
                         super.onReceivedError(view, request, error)
+                    }
+
+                    override fun onReceivedHttpError(
+                        view: android.webkit.WebView?,
+                        request: android.webkit.WebResourceRequest?,
+                        errorResponse: android.webkit.WebResourceResponse?,
+                    ) {
+                        val url = request?.url?.toString() ?: "?"
+                        AppLogger.e(
+                            LogTags.WEBVIEW,
+                            "HTTP ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase}: $url"
+                        )
+                        super.onReceivedHttpError(view, request, errorResponse)
                     }
 
                     override fun onPageFinished(
@@ -1591,10 +1620,11 @@ private fun EmbedWebViewPlayer(
                         url: String?,
                     ) {
                         super.onPageFinished(view, url)
-                        android.util.Log.d("EmbedWebView", "Page loaded: $url")
+                        AppLogger.success(LogTags.WEBVIEW, "onPageFinished: $url")
                         // Inject JS để auto-play sau khi JW player init xong
                         // JW player thường cần tap để play do autoplay policy,
                         // ta cố gắng trigger play() qua JS.
+                        AppLogger.d(LogTags.WEBVIEW, "Injecting autoplay JS...")
                         view?.evaluateJavascript(
                             """
                             (function() {
@@ -1637,10 +1667,11 @@ private fun EmbedWebViewPlayer(
                     override fun onConsoleMessage(
                         consoleMessage: android.webkit.ConsoleMessage?,
                     ): Boolean {
-                        android.util.Log.d(
-                            "EmbedWebView",
-                            "Chrome JS: ${consoleMessage?.message()}"
-                        )
+                        val msg = consoleMessage?.message ?: ""
+                        val src = consoleMessage?.sourceId ?: "?"
+                        val line = consoleMessage?.lineNumber ?: -1
+                        // JW player JS console messages — log as INFO to AppLogger
+                        AppLogger.i(LogTags.WEBVIEW, "JS: $msg ($src:$line)")
                         return true
                     }
 
@@ -1648,7 +1679,7 @@ private fun EmbedWebViewPlayer(
                         view: android.webkit.WebView?,
                         newProgress: Int,
                     ) {
-                        android.util.Log.d("EmbedWebView", "Page progress: $newProgress%")
+                        AppLogger.d(LogTags.WEBVIEW, "Page progress: $newProgress%")
                         super.onProgressChanged(view, newProgress)
                     }
                 }

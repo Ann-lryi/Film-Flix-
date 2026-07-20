@@ -10,6 +10,8 @@ import com.nguonc.stream.data.remote.dto.CategoryDto
 import com.nguonc.stream.data.remote.dto.EpisodeDto
 import com.nguonc.stream.data.remote.dto.EpisodeServerDto
 import com.nguonc.stream.data.remote.dto.MovieDetailDto
+import com.nguonc.stream.debug.AppLogger
+import com.nguonc.stream.debug.LogTags
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.data.remote.dto.NguoncMovieDetailDto
 import com.nguonc.stream.data.remote.dto.NguoncMovieItemDto
@@ -54,35 +56,67 @@ class MovieRepository @Inject constructor(
      *  - "tv-shows" → /films/danh-sach/tv-shows (giả định tương tự)
      */
     suspend fun getMovieList(type: String, page: Int): MoviePage = io {
-        val res = when (type) {
-            "phim-moi-cap-nhat" -> nguoncApi.getPhimMoiCapNhat(page)
-            "phim-le", "phim-bo", "tv-shows" -> nguoncApi.getDanhSach(type, page)
-            "hoat-hinh" -> nguoncApi.getTheLoai("hoat-hinh", page)
-            else -> nguoncApi.getDanhSach(type, page)
+        AppLogger.d(LogTags.REPO, "getMovieList(type=$type, page=$page) — calling NguoncApi...")
+        try {
+            val res = when (type) {
+                "phim-moi-cap-nhat" -> {
+                    AppLogger.d(LogTags.API, "→ GET /films/phim-moi-cap-nhat?page=$page")
+                    nguoncApi.getPhimMoiCapNhat(page)
+                }
+                "phim-le", "phim-bo", "tv-shows" -> {
+                    AppLogger.d(LogTags.API, "→ GET /films/danh-sach/$type?page=$page")
+                    nguoncApi.getDanhSach(type, page)
+                }
+                "hoat-hinh" -> {
+                    AppLogger.d(LogTags.API, "→ GET /films/the-loai/hoat-hinh?page=$page (special endpoint)")
+                    nguoncApi.getTheLoai("hoat-hinh", page)
+                }
+                else -> {
+                    AppLogger.w(LogTags.REPO, "Unknown type '$type', falling back to /films/danh-sach/$type")
+                    nguoncApi.getDanhSach(type, page)
+                }
+            }
+            AppLogger.success(
+                LogTags.REPO,
+                "getMovieList($type, page=$page) ✓ — got ${res.items.size} items, status=${res.status}, totalPage=${res.paginate.totalPage}"
+            )
+            MoviePage(
+                items = res.items.map { it.toMovieItemDto() },
+                pagination = PaginationDto(
+                    totalItems = res.paginate.totalItems,
+                    totalItemsPerPage = res.paginate.itemsPerPage,
+                    currentPage = res.paginate.currentPage,
+                    totalPages = res.paginate.totalPage,
+                ),
+            )
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "getMovieList($type, page=$page) FAILED: ${e.message}", e)
+            throw e
         }
-        MoviePage(
-            items = res.items.map { it.toMovieItemDto() },
-            pagination = PaginationDto(
-                totalItems = res.paginate.totalItems,
-                totalItemsPerPage = res.paginate.itemsPerPage,
-                currentPage = res.paginate.currentPage,
-                totalPages = res.paginate.totalPage,
-            ),
-        )
     }
 
     /** Tìm kiếm — dùng NguoncApi */
     suspend fun search(keyword: String, page: Int): MoviePage = io {
-        val res = nguoncApi.search(keyword, page)
-        MoviePage(
-            items = res.items.map { it.toMovieItemDto() },
-            pagination = PaginationDto(
-                totalItems = res.paginate.totalItems,
-                totalItemsPerPage = res.paginate.itemsPerPage,
-                currentPage = res.paginate.currentPage,
-                totalPages = res.paginate.totalPage,
-            ),
-        )
+        AppLogger.d(LogTags.API, "→ GET /films/search?keyword=$keyword&page=$page")
+        try {
+            val res = nguoncApi.search(keyword, page)
+            AppLogger.success(
+                LogTags.REPO,
+                "search('$keyword', page=$page) ✓ — got ${res.items.size} results"
+            )
+            MoviePage(
+                items = res.items.map { it.toMovieItemDto() },
+                pagination = PaginationDto(
+                    totalItems = res.paginate.totalItems,
+                    totalItemsPerPage = res.paginate.itemsPerPage,
+                    currentPage = res.paginate.currentPage,
+                    totalPages = res.paginate.totalPage,
+                ),
+            )
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "search('$keyword', page=$page) FAILED: ${e.message}", e)
+            throw e
+        }
     }
 
     // ============================================================
@@ -112,32 +146,61 @@ class MovieRepository @Inject constructor(
     // ============================================================
 
     suspend fun getMovieDetail(slug: String): MovieDetailBundle = io {
-        val res = nguoncApi.getFilmDetail(slug)
-        val movie = res.movie.toMovieDetailDto()
-        // Chỉ giữ server có ít nhất 1 tập có embed URL hợp lệ.
-        // Detail và Player dùng cùng danh sách, tránh lệch index.
-        val episodes = res.movie.episodes
-            .map { srv ->
-                EpisodeServerDto(
-                    serverName = srv.serverName,
-                    serverData = srv.items
-                        .filter { it.embed.isNotBlank() }
-                        .map { ep ->
-                            EpisodeDto(
-                                name = ep.name,
-                                slug = ep.slug,
-                                filename = "",
-                                linkEmbed = ep.embed,
-                                // NguoncApi chỉ trả embed URL (iframe player),
-                                // không trả link_m3u8 trực tiếp. ExoPlayer không
-                                // play được embed URL → Player sẽ dùng WebView.
-                                linkM3u8 = "",
-                            )
-                        },
+        AppLogger.d(LogTags.API, "→ GET /film/$slug (detail)")
+        try {
+            val res = nguoncApi.getFilmDetail(slug)
+            val movie = res.movie.toMovieDetailDto()
+            AppLogger.i(
+                LogTags.REPO,
+                "Detail loaded: \"${movie.name}\" — ${res.movie.episodes.size} raw servers"
+            )
+            // Log từng server gốc từ API
+            res.movie.episodes.forEachIndexed { idx, srv ->
+                AppLogger.d(
+                    LogTags.REPO,
+                    "  raw server #${idx + 1}: name=\"${srv.serverName}\", ${srv.items.size} episodes"
                 )
             }
-            .filter { it.serverData.isNotEmpty() }
-        MovieDetailBundle(movie = movie, episodes = episodes)
+            // Chỉ giữ server có ít nhất 1 tập có embed URL hợp lệ.
+            // Detail và Player dùng cùng danh sách, tránh lệch index.
+            val episodes = res.movie.episodes
+                .map { srv ->
+                    EpisodeServerDto(
+                        serverName = srv.serverName,
+                        serverData = srv.items
+                            .filter { it.embed.isNotBlank() }
+                            .map { ep ->
+                                EpisodeDto(
+                                    name = ep.name,
+                                    slug = ep.slug,
+                                    filename = "",
+                                    linkEmbed = ep.embed,
+                                    // NguoncApi chỉ trả embed URL (iframe player),
+                                    // không trả link_m3u8 trực tiếp. ExoPlayer không
+                                    // play được embed URL → Player sẽ dùng WebView.
+                                    linkM3u8 = "",
+                                )
+                            },
+                    )
+                }
+                .filter { it.serverData.isNotEmpty() }
+
+            AppLogger.success(
+                LogTags.REPO,
+                "getMovieDetail('$slug') ✓ — ${episodes.size} valid servers, ${episodes.sumOf { it.serverData.size }} total episodes"
+            )
+            episodes.forEachIndexed { idx, srv ->
+                val firstEp = srv.serverData.firstOrNull()
+                AppLogger.d(
+                    LogTags.REPO,
+                    "  ✓ server #${idx + 1}: \"${srv.serverName}\" — ${srv.serverData.size} eps, first=${firstEp?.name}, embed=${firstEp?.linkEmbed?.take(60)}..."
+                )
+            }
+            MovieDetailBundle(movie = movie, episodes = episodes)
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "getMovieDetail('$slug') FAILED: ${e.message}", e)
+            throw e
+        }
     }
 
     // ============================================================

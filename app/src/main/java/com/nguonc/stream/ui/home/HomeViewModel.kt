@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.nguonc.stream.data.remote.PhimApi
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.data.repository.MovieRepository
+import com.nguonc.stream.debug.AppLogger
+import com.nguonc.stream.debug.LogTags
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.async
@@ -58,16 +60,27 @@ class HomeViewModel @Inject constructor(
     /** Tải song song 4 mục; mục nào lỗi chỉ ảnh hưởng mục đó. */
     private fun loadAll() {
         viewModelScope.launch {
+            AppLogger.i(LogTags.HOME_VM, "=== loadAll() — ${sectionDefs.size} sections ===")
             coroutineScope {
                 sectionDefs.mapIndexed { index, (_, type) ->
                     async {
+                        AppLogger.d(LogTags.HOME_VM, "Loading section[$index] type=$type...")
                         runCatching { repository.getMovieList(type, page = 1) }
                             .onSuccess { page ->
+                                AppLogger.success(
+                                    LogTags.HOME_VM,
+                                    "Section[$index] ($type) ✓ — ${page.items.size} items, page ${page.pagination.currentPage}/${page.pagination.totalPages}"
+                                )
                                 updateSection(index) {
                                     it.copy(items = page.items, isLoading = false, error = null)
                                 }
                             }
                             .onFailure { e ->
+                                AppLogger.e(
+                                    LogTags.HOME_VM,
+                                    "Section[$index] ($type) FAILED: ${e.message}",
+                                    e
+                                )
                                 updateSection(index) {
                                     it.copy(isLoading = false, error = e.readableMessage())
                                 }
@@ -75,6 +88,7 @@ class HomeViewModel @Inject constructor(
                     }
                 }.forEach { it.await() }
             }
+            AppLogger.i(LogTags.HOME_VM, "=== loadAll() done ===")
             _uiState.update { it.copy(isRefreshing = false) }
         }
     }

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nguonc.stream.data.repository.MovieDetailBundle
 import com.nguonc.stream.data.repository.MovieRepository
+import com.nguonc.stream.debug.AppLogger
+import com.nguonc.stream.debug.LogTags
 import com.nguonc.stream.ui.home.readableMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -37,15 +39,21 @@ class DetailViewModel @Inject constructor(
     init {
         // Restore selected server across configuration changes / process death
         val savedServer = savedStateHandle.get<Int>("selectedServer") ?: 0
+        AppLogger.i(LogTags.DETAIL_VM, "=== DetailViewModel init === slug=\"$slug\", savedServer=$savedServer")
         _uiState.update { it.copy(selectedServer = savedServer) }
         load()
         viewModelScope.launch {
             repository.observeIsFavorite(slug).collect { isFav ->
+                AppLogger.d(LogTags.DETAIL_VM, "isFavorite changed: $isFav")
                 _uiState.update { it.copy(isFavorite = isFav) }
             }
         }
         viewModelScope.launch {
             repository.getHistory(slug)?.let { history ->
+                AppLogger.i(
+                    LogTags.DETAIL_VM,
+                    "History found: epSlug=${history.episodeSlug}, positionMs=${history.positionMs}"
+                )
                 _uiState.update { it.copy(lastWatchedEpisode = history.episodeSlug) }
             }
         }
@@ -53,17 +61,29 @@ class DetailViewModel @Inject constructor(
 
     fun load() {
         viewModelScope.launch {
+            AppLogger.i(LogTags.DETAIL_VM, "load() — fetching detail for slug=\"$slug\"")
             _uiState.update { it.copy(isLoading = true, error = null) }
             runCatching { repository.getMovieDetail(slug) }
                 .onSuccess { bundle ->
                     // Clamp selectedServer to valid range
                     val clamped = _uiState.value.selectedServer
                         .coerceIn(0, (bundle.episodes.size - 1).coerceAtLeast(0))
+                    AppLogger.success(
+                        LogTags.DETAIL_VM,
+                        "load() ✓ — \"${bundle.movie.name}\", ${bundle.episodes.size} servers, selectedServer=$clamped"
+                    )
+                    bundle.episodes.forEachIndexed { idx, srv ->
+                        AppLogger.d(
+                            LogTags.DETAIL_VM,
+                            "  server[${idx}] = \"${srv.serverName}\" (${srv.serverData.size} eps)"
+                        )
+                    }
                     _uiState.update {
                         it.copy(isLoading = false, bundle = bundle, selectedServer = clamped)
                     }
                 }
                 .onFailure { e ->
+                    AppLogger.e(LogTags.DETAIL_VM, "load() FAILED: ${e.message}", e)
                     _uiState.update { it.copy(isLoading = false, error = e.readableMessage()) }
                 }
         }
@@ -71,12 +91,14 @@ class DetailViewModel @Inject constructor(
 
     fun toggleFavorite() {
         val movie = _uiState.value.bundle?.movie ?: return
+        AppLogger.d(LogTags.DETAIL_VM, "toggleFavorite() — slug=\"${movie.slug}\"")
         viewModelScope.launch { repository.toggleFavorite(movie) }
     }
 
     fun selectServer(index: Int) {
         val max = (_uiState.value.bundle?.episodes?.size ?: 1) - 1
         val safe = index.coerceIn(0, max.coerceAtLeast(0))
+        AppLogger.i(LogTags.DETAIL_VM, "selectServer($index) → clamped=$safe")
         savedStateHandle["selectedServer"] = safe
         _uiState.update { it.copy(selectedServer = safe) }
     }
