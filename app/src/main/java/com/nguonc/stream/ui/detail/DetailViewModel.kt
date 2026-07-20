@@ -31,7 +31,7 @@ class DetailViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val slug: String = checkNotNull(savedStateHandle["slug"])
+    private val slug: String = savedStateHandle.get<String>("slug").orEmpty()
 
     private val _uiState = MutableStateFlow(DetailUiState())
     val uiState: StateFlow<DetailUiState> = _uiState.asStateFlow()

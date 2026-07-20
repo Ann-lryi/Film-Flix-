@@ -108,7 +108,7 @@ class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val slug: String = checkNotNull(savedStateHandle["slug"])
+    private val slug: String = savedStateHandle.get<String>("slug").orEmpty()
     private val requestedEpisode: String? = savedStateHandle["ep"]
     private val requestedServer: Int = savedStateHandle.get<Int>("server") ?: 0
 

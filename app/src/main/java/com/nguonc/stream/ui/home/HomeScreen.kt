@@ -266,39 +266,74 @@ private fun PremiumHomeTopBar(
             }
         }
 
-        // Search pill — premium pressable, full-width version on the right
-        val searchInteraction = remember { MutableInteractionSource() }
-        val isPressed by searchInteraction.collectIsPressedAsState()
-        val searchScale by androidx.compose.animation.core.animateFloatAsState(
-            targetValue = if (isPressed) Motion.PressScale else 1f,
-            animationSpec = Motion.PressSpring,
-            label = "searchPillScale"
-        )
-        Surface(
-            shape = AppShapes.Pill,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-            modifier = Modifier
-                .height(44.dp)
-                .scale(searchScale)
-                .clip(AppShapes.Pill)
-                .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
+        // Right side: Debug button (small icon, easy to find) + Search pill
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            // Debug Logs button — small icon, always visible
+            val debugInteraction = remember { MutableInteractionSource() }
+            val debugPressed by debugInteraction.collectIsPressedAsState()
+            val debugScale by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (debugPressed) Motion.PressScale else 1f,
+                animationSpec = Motion.PressSpring,
+                label = "debugBtnScale"
+            )
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                ),
+                modifier = Modifier
+                    .size(40.dp)
+                    .scale(debugScale)
+                    .clickable(interactionSource = debugInteraction, indication = null, onClick = onDebugLogsClick)
             ) {
-                Icon(
-                    FilmFlixIcons.SearchOutline, null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    "Tìm kiếm",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        FilmFlixIcons.BoltFilled, "Debug Logs",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Search pill — premium pressable
+            val searchInteraction = remember { MutableInteractionSource() }
+            val isPressed by searchInteraction.collectIsPressedAsState()
+            val searchScale by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (isPressed) Motion.PressScale else 1f,
+                animationSpec = Motion.PressSpring,
+                label = "searchPillScale"
+            )
+            Surface(
+                shape = AppShapes.Pill,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .height(44.dp)
+                    .scale(searchScale)
+                    .clip(AppShapes.Pill)
+                    .clickable(interactionSource = searchInteraction, indication = null, onClick = onSearchClick)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
+                ) {
+                    Icon(
+                        FilmFlixIcons.SearchOutline, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        "Tìm kiếm",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

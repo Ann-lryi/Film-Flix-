@@ -2,8 +2,8 @@ package com.nguonc.stream.debug
 
 import android.util.Log
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,17 +20,25 @@ import java.util.concurrent.atomic.AtomicLong
  *  - Buffer in-memory (max 500 entries, FIFO)
  *  - 5 levels: VERBOSE, DEBUG, INFO, WARN, ERROR — mỗi level 1 màu
  *  - Tag theo component (API, REPO, VM, PLAYER, WEBVIEW, NAV, UI)
- *  - Expose StateFlow<LogList> để UI observe realtime
+ *  - Expose StateFlow<Long> tick để UI observe realtime
  *  - Cũng log ra logcat (Log.d/w/e) cho adb logcat
  *  - Export to text (cho copy/share)
+ *
+ * ⚠️ THREAD-SAFE: AppLogger có thể được gọi từ bất kỳ thread nào
+ * (Dispatchers.IO trong Repository, main thread trong UI, v.v.)
+ * — Dùng CopyOnWriteArrayList + synchronized để đảm bảo an toàn.
  */
 object AppLogger {
 
     private const val MAX_ENTRIES = 500
     private val idCounter = AtomicLong(0)
 
-    private val _entries: SnapshotStateList<LogEntry> = mutableStateListOf()
-    val entries: List<LogEntry> get() = _entries
+    // Thread-safe list — CopyOnWriteArrayList cho read-heavy, write-light pattern.
+    // SnapshotStateList KHÔNG thread-safe → không dùng được từ background thread.
+    private val _entries: CopyOnWriteArrayList<LogEntry> = CopyOnWriteArrayList()
+
+    /** Public read-only snapshot của entries (copy ra list mới để UI iterate an toàn). */
+    val entries: List<LogEntry> get() = _entries.toList()
 
     private val _tick = MutableStateFlow(0L)
     val tick: StateFlow<Long> = _tick.asStateFlow()
@@ -65,11 +73,20 @@ object AppLogger {
 
     /** Export toàn bộ log ra text (cho copy/share). */
     fun export(): String {
-        return _entries.joinToString("\n") { entry ->
-            val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-                .format(Date(entry.timestamp))
-            "[${entry.level.label}] ${time} ${entry.tag}: ${entry.message}" +
-                (entry.throwableTrace?.let { "\n$it" } ?: "")
+        val snapshot = _entries.toList()
+        return buildString {
+            for (entry in snapshot) {
+                val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+                    .format(Date(entry.timestamp))
+                append("[${entry.level.label}] ")
+                append(time)
+                append(" ")
+                append(entry.tag)
+                append(": ")
+                append(entry.message)
+                entry.throwableTrace?.let { append("\n").append(it) }
+                append("\n")
+            }
         }
     }
 
@@ -87,13 +104,14 @@ object AppLogger {
                 ?.takeIf { it.isNotBlank() },
         )
 
-        // Add to in-memory buffer (FIFO)
+        // Thread-safe add + trim (FIFO)
         synchronized(_entries) {
-            if (_entries.size >= MAX_ENTRIES) {
+            _entries.add(entry)
+            while (_entries.size > MAX_ENTRIES) {
                 _entries.removeAt(0)
             }
-            _entries.add(entry)
         }
+        // Trigger UI recomposition via tick (StateFlow is thread-safe)
         _tick.update { it + 1 }
 
         // Also log to logcat (để xem qua adb logcat nếu cần)
