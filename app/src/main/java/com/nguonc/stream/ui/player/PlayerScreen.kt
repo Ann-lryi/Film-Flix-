@@ -1667,9 +1667,9 @@ private fun EmbedWebViewPlayer(
                     override fun onConsoleMessage(
                         consoleMessage: android.webkit.ConsoleMessage?,
                     ): Boolean {
-                        val msg = consoleMessage?.message ?: ""
-                        val src = consoleMessage?.sourceId ?: "?"
-                        val line = consoleMessage?.lineNumber ?: -1
+                        val msg = consoleMessage?.message() ?: ""
+                        val src = consoleMessage?.sourceId() ?: "?"
+                        val line = consoleMessage?.lineNumber() ?: -1
                         // JW player JS console messages — log as INFO to AppLogger
                         AppLogger.i(LogTags.WEBVIEW, "JS: $msg ($src:$line)")
                         return true
