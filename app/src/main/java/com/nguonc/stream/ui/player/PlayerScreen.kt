@@ -1537,8 +1537,10 @@ private fun EmbedWebViewPlayer(
     AndroidView(
         factory = { ctx ->
             android.webkit.WebView(ctx).apply {
-                // ---- Debug (bật logcat để debug) ----
-                android.webkit.WebView.setWebContentsDebuggingEnabled(true)
+                // ---- DEBUG: TẮT setWebContentsDebuggingEnabled ----
+                // (JW player's devtoolsDetector detect được khi true → reload loop → đen)
+                // Bật lại = true chỉ khi cần debug qua chrome://inspect.
+                // android.webkit.WebView.setWebContentsDebuggingEnabled(true)
 
                 // ---- WebSettings cho video playback ----
                 settings.javaScriptEnabled = true
@@ -1547,6 +1549,9 @@ private fun EmbedWebViewPlayer(
                 settings.allowFileAccess = true
                 settings.allowContentAccess = true
                 settings.mediaPlaybackRequiresUserGesture = false
+                // Cookie support — JW player cần cookies cho session/token
+                android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
                 // Mixed content: cho phép load HTTP resources từ HTTPS page
                 settings.mixedContentMode =
                     android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
@@ -1555,7 +1560,8 @@ private fun EmbedWebViewPlayer(
                 settings.useWideViewPort = true
                 // Cache mode
                 settings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
-                // User-Agent: Chrome mobile cho Android
+                // User-Agent: Chrome mobile cho Android (KHÔNG chứa "wv" hay "WebView")
+                // để tránh bị detect là WebView player
                 settings.userAgentString =
                     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
                         "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
@@ -1563,12 +1569,31 @@ private fun EmbedWebViewPlayer(
                 // Hardware accelerated layer cho smooth video
                 setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
 
-                // ---- WebViewClient: không intercept, chỉ log + bypass SSL ----
+                // ---- WebViewClient: intercept devtools.js để block, others go through ----
                 webViewClient = object : android.webkit.WebViewClient() {
                     override fun shouldOverrideUrlLoading(
                         view: android.webkit.WebView?,
                         request: android.webkit.WebResourceRequest?,
                     ): Boolean = false
+
+                    override fun shouldInterceptRequest(
+                        view: android.webkit.WebView?,
+                        request: android.webkit.WebResourceRequest?,
+                    ): android.webkit.WebResourceResponse? {
+                        val url = request?.url?.toString() ?: return null
+                        // BLOCK devtools.js — nó chứa devtoolsDetector, reload loop nếu detect
+                        // dev tools (kể cả khi tắt setWebContentsDebuggingEnabled).
+                        // Trả về JS rỗng để JW player init bình thường.
+                        if (url.contains("devtools.js") || url.contains("devtools-detector")) {
+                            AppLogger.w(LogTags.WEBVIEW, "⛔ Blocking devtools.js (anti-detect)")
+                            return android.webkit.WebResourceResponse(
+                                "application/javascript",
+                                "UTF-8",
+                                java.io.ByteArrayInputStream("(function(){window.devtoolsDetector={launch:function(){},addListener:function(){},stop:function(){}};})()".toByteArray())
+                            )
+                        }
+                        return null
+                    }
 
                     override fun onPageStarted(
                         view: android.webkit.WebView?,
@@ -1585,7 +1610,6 @@ private fun EmbedWebViewPlayer(
                         error: android.net.http.SslError?,
                     ) {
                         AppLogger.w(LogTags.WEBVIEW, "SSL error (bypassing): ${error?.primaryError} — handler.proceed()")
-                        // Bypass SSL errors cho player server (self-signed certs)
                         handler?.proceed()
                     }
 
@@ -1595,10 +1619,16 @@ private fun EmbedWebViewPlayer(
                         error: android.webkit.WebResourceError?,
                     ) {
                         val url = request?.url?.toString() ?: "?"
-                        AppLogger.e(
-                            LogTags.WEBVIEW,
-                            "onReceivedError: url=$url, errorCode=${error?.errorCode}, desc=${error?.description}"
-                        )
+                        // Skip logging for non-critical resources (images, css, fonts)
+                        val isCritical = url.contains(".m3u8") || url.contains(".mp4") ||
+                            url.contains(".ts") || url.contains("streamc.xyz") ||
+                            url.contains("jwplayer") || url.contains("phim1280")
+                        if (isCritical) {
+                            AppLogger.e(
+                                LogTags.WEBVIEW,
+                                "onReceivedError: url=$url, errorCode=${error?.errorCode}, desc=${error?.description}"
+                            )
+                        }
                         super.onReceivedError(view, request, error)
                     }
 
@@ -1608,10 +1638,18 @@ private fun EmbedWebViewPlayer(
                         errorResponse: android.webkit.WebResourceResponse?,
                     ) {
                         val url = request?.url?.toString() ?: "?"
-                        AppLogger.e(
-                            LogTags.WEBVIEW,
-                            "HTTP ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase}: $url"
-                        )
+                        val statusCode = errorResponse?.statusCode ?: -1
+                        // Skip 400 errors from jwplayer.com entitlements (non-critical analytics)
+                        if (url.contains("entitlements.jwplayer.com") && statusCode == 400) {
+                            AppLogger.d(LogTags.WEBVIEW, "JW entitlements 400 (ignorable): $url")
+                        } else if (url.contains(".m3u8") || url.contains(".mp4") ||
+                            url.contains(".ts") || url.contains("streamc.xyz") ||
+                            url.contains("phim1280")) {
+                            AppLogger.e(
+                                LogTags.WEBVIEW,
+                                "HTTP ${errorResponse?.statusCode} ${errorResponse?.reasonPhrase}: $url"
+                            )
+                        }
                         super.onReceivedHttpError(view, request, errorResponse)
                     }
 
@@ -1621,38 +1659,58 @@ private fun EmbedWebViewPlayer(
                     ) {
                         super.onPageFinished(view, url)
                         AppLogger.success(LogTags.WEBVIEW, "onPageFinished: $url")
-                        // Inject JS để auto-play sau khi JW player init xong
-                        // JW player thường cần tap để play do autoplay policy,
-                        // ta cố gắng trigger play() qua JS.
-                        AppLogger.d(LogTags.WEBVIEW, "Injecting autoplay JS...")
+                        // Inject JS sớm để neutralize devtoolsDetector + auto-play JW player
+                        AppLogger.d(LogTags.WEBVIEW, "Injecting anti-detect + autoplay JS...")
                         view?.evaluateJavascript(
                             """
                             (function() {
-                                // Chờ JW player sẵn sàng rồi play
+                                // 1. Neutralize devtoolsDetector BEFORE player.js loads
+                                window.devtoolsDetector = {
+                                    launch: function() { console.log('[FF] devtoolsDetector.launch blocked'); },
+                                    addListener: function() {},
+                                    removeListener: function() {},
+                                    stop: function() {},
+                                    isLaunch: false
+                                };
+                                // Prevent devtoolsDetector reload loop
+                                window.location.__defineGetter__('reload', function() {
+                                    return function() { console.log('[FF] location.reload blocked'); };
+                                });
+
+                                // 2. Wait for JW player ready then play
                                 var attempts = 0;
                                 var interval = setInterval(function() {
                                     attempts++;
                                     try {
                                         if (typeof jwplayer !== 'undefined') {
                                             var p = jwplayer('player');
-                                            if (p && typeof p.play === 'function') {
-                                                p.play();
-                                                clearInterval(interval);
-                                                console.log('JW player play() called');
+                                            if (p && typeof p.setup === 'function' && p.getPlaylist) {
+                                                // JW player đã init
+                                                if (p.getState() !== 'playing') {
+                                                    p.play();
+                                                    console.log('[FF] JW player.play() called, state=' + p.getState());
+                                                } else {
+                                                    clearInterval(interval);
+                                                    console.log('[FF] JW player already playing');
+                                                }
                                             }
                                         }
-                                    } catch(e) { console.log('JW play attempt error: ' + e); }
+                                    } catch(e) { console.log('[FF] JW play attempt error: ' + e); }
                                     if (attempts > 30) {
                                         clearInterval(interval);
-                                        console.log('JW player not found after 15s');
+                                        console.log('[FF] JW player not ready after 15s');
                                     }
                                 }, 500);
-                                // Also try HTML5 video element
+
+                                // 3. Also try HTML5 video elements
                                 setTimeout(function() {
                                     var videos = document.querySelectorAll('video');
+                                    console.log('[FF] Found ' + videos.length + ' video elements');
                                     videos.forEach(function(v) {
-                                        v.play().catch(function(e) {
-                                            console.log('HTML5 video play failed: ' + e);
+                                        v.play().then(function() {
+                                            console.log('[FF] HTML5 video.play() OK');
+                                        }).catch(function(e) {
+                                            console.log('[FF] HTML5 video play failed: ' + e);
                                         });
                                     });
                                 }, 2000);
@@ -1670,8 +1728,12 @@ private fun EmbedWebViewPlayer(
                         val msg = consoleMessage?.message() ?: ""
                         val src = consoleMessage?.sourceId() ?: "?"
                         val line = consoleMessage?.lineNumber() ?: -1
-                        // JW player JS console messages — log as INFO to AppLogger
-                        AppLogger.i(LogTags.WEBVIEW, "JS: $msg ($src:$line)")
+                        // Chỉ log JS messages có chứa [FF] prefix hoặc error keywords
+                        // (avoid spam từ devtools.js's [object Object] outputs)
+                        if (msg.contains("[FF]") || msg.contains("error") ||
+                            msg.contains("Error") || msg.contains("failed")) {
+                            AppLogger.i(LogTags.WEBVIEW, "JS: $msg ($src:$line)")
+                        }
                         return true
                     }
 
@@ -1679,7 +1741,9 @@ private fun EmbedWebViewPlayer(
                         view: android.webkit.WebView?,
                         newProgress: Int,
                     ) {
-                        AppLogger.d(LogTags.WEBVIEW, "Page progress: $newProgress%")
+                        if (newProgress == 100 || newProgress % 25 == 0) {
+                            AppLogger.d(LogTags.WEBVIEW, "Page progress: $newProgress%")
+                        }
                         super.onProgressChanged(view, newProgress)
                     }
                 }
@@ -1687,11 +1751,10 @@ private fun EmbedWebViewPlayer(
                 setBackgroundColor(android.graphics.Color.BLACK)
                 isHorizontalScrollBarEnabled = false
                 isVerticalScrollBarEnabled = false
-                // Cho phép focus để nhận key events
                 isFocusable = true
                 isFocusableInTouchMode = true
 
-                // Load với Referer header — embed server (streamc.xyz) kiểm tra referer
+                // Load với Referer header
                 if (embedUrl.isNotBlank()) {
                     val headers = mapOf(
                         "Referer" to "https://phim.nguonc.com/",
@@ -1702,7 +1765,6 @@ private fun EmbedWebViewPlayer(
             }
         },
         update = { webview ->
-            // Chỉ reload khi URL thực sự thay đổi (không reload khi recompose)
             if (embedUrl.isNotBlank() && embedUrl != loadedUrl) {
                 val headers = mapOf(
                     "Referer" to "https://phim.nguonc.com/",
