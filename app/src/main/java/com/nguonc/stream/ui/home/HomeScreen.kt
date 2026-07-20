@@ -207,6 +207,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PremiumHomeTopBar(
     onSearchClick: () -> Unit,
