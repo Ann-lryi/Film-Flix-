@@ -117,9 +117,30 @@ class PlayerViewModel @Inject constructor(
 
     /** Player sống trong ViewModel để không mất tiến trình khi xoay màn hình. */
     val player: ExoPlayer by lazy {
-        ExoPlayer.Builder(appContext).build().apply {
-            playWhenReady = true
-        }
+        // Custom DataSourceFactory chèn Referer + User-Agent headers cho m3u8 streams.
+        // Streamc.xyz CDN yêu cầu Referer = embedXX.streamc.xyz (iframe origin).
+        val dataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
+            okhttp3.OkHttpClient.Builder()
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .addInterceptor { chain ->
+                    val request = chain.request().newBuilder()
+                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+                        .header("Referer", "https://embed13.streamc.xyz/")
+                        .header("Origin", "https://embed13.streamc.xyz")
+                        .build()
+                    chain.proceed(request)
+                }
+                .build()
+        )
+        ExoPlayer.Builder(appContext)
+            .setMediaSourceFactory(
+                androidx.media3.exoplayer.source.DefaultMediaSourceFactory(appContext)
+                    .setDataSourceFactory(dataSourceFactory)
+            )
+            .build().apply {
+                playWhenReady = true
+            }
     }
 
     private var progressJob: Job? = null

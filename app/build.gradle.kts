@@ -96,6 +96,7 @@ dependencies {
     // Media3
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.datasource.okhttp)
     implementation(libs.androidx.media3.ui)
 
     // Coil (2.x: tải ảnh qua OkHttp có sẵn trong coil-base)

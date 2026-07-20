@@ -12,6 +12,7 @@ import com.nguonc.stream.data.remote.dto.EpisodeServerDto
 import com.nguonc.stream.data.remote.dto.MovieDetailDto
 import com.nguonc.stream.debug.AppLogger
 import com.nguonc.stream.debug.LogTags
+import okhttp3.OkHttpClient
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.data.remote.dto.NguoncMovieDetailDto
 import com.nguonc.stream.data.remote.dto.NguoncMovieItemDto
@@ -40,6 +41,7 @@ data class MovieDetailBundle(
 class MovieRepository @Inject constructor(
     private val api: PhimApi,
     private val nguoncApi: NguoncApi,
+    private val okHttpClient: OkHttpClient,
     private val favoriteDao: FavoriteDao,
     private val historyDao: HistoryDao,
 ) {
@@ -170,15 +172,17 @@ class MovieRepository @Inject constructor(
                         serverData = srv.items
                             .filter { it.embed.isNotBlank() }
                             .map { ep ->
+                                // Convert embed URL → direct m3u8 URL để ExoPlayer play được.
+                                // Embed URL: https://embedXX.streamc.xyz/embed.php?hash=ABC
+                                // Fetch embed page → extract data-obf → base64 decode → get sUb
+                                // → direct m3u8: https://embedXX.streamc.xyz/{sUb} (no ?d=1)
+                                val m3u8Url = extractM3u8FromEmbed(ep.embed)
                                 EpisodeDto(
                                     name = ep.name,
                                     slug = ep.slug,
                                     filename = "",
                                     linkEmbed = ep.embed,
-                                    // NguoncApi chỉ trả embed URL (iframe player),
-                                    // không trả link_m3u8 trực tiếp. ExoPlayer không
-                                    // play được embed URL → Player sẽ dùng WebView.
-                                    linkM3u8 = "",
+                                    linkM3u8 = m3u8Url,
                                 )
                             },
                     )
@@ -193,13 +197,75 @@ class MovieRepository @Inject constructor(
                 val firstEp = srv.serverData.firstOrNull()
                 AppLogger.d(
                     LogTags.REPO,
-                    "  ✓ server #${idx + 1}: \"${srv.serverName}\" — ${srv.serverData.size} eps, first=${firstEp?.name}, embed=${firstEp?.linkEmbed?.take(60)}..."
+                    "  ✓ server #${idx + 1}: \"${srv.serverName}\" — ${srv.serverData.size} eps, first=${firstEp?.name}, m3u8=${firstEp?.linkM3u8?.take(80)}..."
                 )
             }
             MovieDetailBundle(movie = movie, episodes = episodes)
         } catch (e: Exception) {
             AppLogger.e(LogTags.REPO, "getMovieDetail('$slug') FAILED: ${e.message}", e)
             throw e
+        }
+    }
+
+    /**
+     * Convert embed URL → direct m3u8 URL.
+     *
+     * Embed URL: https://embedXX.streamc.xyz/embed.php?hash=ABC123
+     *  1. Fetch embed page HTML
+     *  2. Extract data-obf attribute (base64 JSON)
+     *  3. Decode → { sUb: "...", hD: "..." }
+     *  4. Direct m3u8 URL = https://embedXX.streamc.xyz/{sUb} (NO ?d=1 — that returns encrypted)
+     *
+     * Returns empty string if extraction fails (Player will fallback to WebView mode).
+     */
+    private suspend fun extractM3u8FromEmbed(embedUrl: String): String {
+        if (embedUrl.isBlank()) return ""
+        return try {
+            AppLogger.d(LogTags.REPO, "  → extracting m3u8 from embed: $embedUrl")
+            // Use OkHttp to fetch embed page with proper headers
+            val request = okhttp3.Request.Builder()
+                .url(embedUrl)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+                .header("Referer", "https://phim.nguonc.com/")
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .build()
+            val response = okHttpClient.newCall(request).execute()
+            val html = response.body?.string().orEmpty()
+            response.close()
+            if (html.isBlank()) {
+                AppLogger.w(LogTags.REPO, "  ⚠ embed page empty")
+                return ""
+            }
+            // Extract data-obf="..." attribute
+            val obfRegex = Regex("""data-obf="([^"]+)"""")
+            val obfMatch = obfRegex.find(html) ?: run {
+                AppLogger.w(LogTags.REPO, "  ⚠ data-obf not found in embed page")
+                return ""
+            }
+            val obfEncoded = obfMatch.groupValues[1]
+            // Decode base64 → JSON { sUb: "...", hD: "..." }
+            val decodedJson = String(java.util.Base64.getDecoder().decode(obfEncoded))
+            // Parse JSON manually (avoid kotlinx.serialization for this small case)
+            val sUbRegex = Regex(""""sUb"\s*:\s*"([^"]+)"""")
+            val sUb = sUbRegex.find(decodedJson)?.groupValues?.[1] ?: run {
+                AppLogger.w(LogTags.REPO, "  ⚠ sUb not found in decoded JSON: $decodedJson")
+                return ""
+            }
+            // Build direct m3u8 URL: same host as embed URL + "/" + sUb (NO ?d=1)
+            // embedUrl = https://embed13.streamc.xyz/embed.php?hash=...
+            // → m3u8Url = https://embed13.streamc.xyz/{sUb}
+            val hostRegex = Regex("""(https?://[^/]+)""")
+            val host = hostRegex.find(embedUrl)?.groupValues?.[1] ?: ""
+            if (host.isBlank()) {
+                AppLogger.w(LogTags.REPO, "  ⚠ cannot extract host from embed URL")
+                return ""
+            }
+            val m3u8Url = "$host/$sUb"
+            AppLogger.success(LogTags.REPO, "  ✓ extracted m3u8: $m3u8Url")
+            m3u8Url
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "  ⚠ extractM3u8FromEmbed failed: ${e.message}", e)
+            ""
         }
     }
 
