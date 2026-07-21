@@ -156,15 +156,16 @@ class MovieRepository @Inject constructor(
                 LogTags.REPO,
                 "Detail loaded: \"${movie.name}\" — ${res.movie.episodes.size} raw servers"
             )
-            // Log từng server gốc từ API
             res.movie.episodes.forEachIndexed { idx, srv ->
                 AppLogger.d(
                     LogTags.REPO,
                     "  raw server #${idx + 1}: name=\"${srv.serverName}\", ${srv.items.size} episodes"
                 )
             }
-            // Chỉ giữ server có ít nhất 1 tập có embed URL hợp lệ.
-            // Detail và Player dùng cùng danh sách, tránh lệch index.
+            // ⚡ LAZY LOAD: KHÔNG extract m3u8 cho tất cả tập ở đây!
+            // Chỉ lưu embed URL → khi user bấm Play mới gọi extractM3u8ForEpisode().
+            // Trước đây: 18 tập × ~100ms = ~1.8s chờ → app chậm.
+            // Giờ: chỉ 1 API call (getFilmDetail) → Detail hiển thị nhanh.
             val episodes = res.movie.episodes
                 .map { srv ->
                     EpisodeServerDto(
@@ -172,17 +173,12 @@ class MovieRepository @Inject constructor(
                         serverData = srv.items
                             .filter { it.embed.isNotBlank() }
                             .map { ep ->
-                                // Convert embed URL → direct m3u8 URL để ExoPlayer play được.
-                                // Embed URL: https://embedXX.streamc.xyz/embed.php?hash=ABC
-                                // Fetch embed page → extract data-obf → base64 decode → get sUb
-                                // → direct m3u8: https://embedXX.streamc.xyz/{sUb} (no ?d=1)
-                                val m3u8Url = extractM3u8FromEmbed(ep.embed)
                                 EpisodeDto(
                                     name = ep.name,
                                     slug = ep.slug,
                                     filename = "",
                                     linkEmbed = ep.embed,
-                                    linkM3u8 = m3u8Url,
+                                    linkM3u8 = "",  // ⚡ Sẽ extract lazy khi Play
                                 )
                             },
                     )
@@ -191,20 +187,21 @@ class MovieRepository @Inject constructor(
 
             AppLogger.success(
                 LogTags.REPO,
-                "getMovieDetail('$slug') ✓ — ${episodes.size} valid servers, ${episodes.sumOf { it.serverData.size }} total episodes"
+                "getMovieDetail('$slug') ✓ — ${episodes.size} valid servers, ${episodes.sumOf { it.serverData.size }} total episodes (lazy m3u8)"
             )
-            episodes.forEachIndexed { idx, srv ->
-                val firstEp = srv.serverData.firstOrNull()
-                AppLogger.d(
-                    LogTags.REPO,
-                    "  ✓ server #${idx + 1}: \"${srv.serverName}\" — ${srv.serverData.size} eps, first=${firstEp?.name}, m3u8=${firstEp?.linkM3u8?.take(80)}..."
-                )
-            }
             MovieDetailBundle(movie = movie, episodes = episodes)
         } catch (e: Exception) {
             AppLogger.e(LogTags.REPO, "getMovieDetail('$slug') FAILED: ${e.message}", e)
             throw e
         }
+    }
+
+    /**
+     * ⚡ Extract m3u8 URL cho 1 tập cụ thể (lazy load).
+     * Gọi khi user bấm Play — không extract tất cả tập khi mở Detail.
+     */
+    suspend fun extractM3u8ForEpisode(embedUrl: String): String = io {
+        extractM3u8FromEmbed(embedUrl)
     }
 
     /**

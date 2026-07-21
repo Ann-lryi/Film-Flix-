@@ -173,6 +173,19 @@ class PlayerViewModel @Inject constructor(
                 androidx.media3.exoplayer.source.DefaultMediaSourceFactory(appContext)
                     .setDataSourceFactory(dataSourceFactory)
             )
+            // ⚡ Load control: buffer nhanh hơn để video play sớm
+            .setLoadControl(
+                androidx.media3.exoplayer.DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        1000,   // minBufferMs — buffer tối thiểu trước khi play (1s)
+                        5000,   // maxBufferMs — buffer tối đa (5s)
+                        500,    // playbackBufferMs — play khi có 0.5s buffer (nhanh)
+                        1000,   // rebufferMs — rebuffer khi buffer < 1s
+                    )
+                    .setTargetBufferBytes(androidx.media3.exoplayer.DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build()
+            )
             .build().apply {
                 playWhenReady = true
             }
@@ -360,40 +373,58 @@ class PlayerViewModel @Inject constructor(
             LogTags.PLAYER_VM,
             "▶ play() — episode=\"${episode.name}\", slug=\"${episode.slug}\", startPos=${startPositionMs}ms"
         )
-        // Nếu chỉ có embed URL (NguoncApi), ExoPlayer không play được.
-        // PlayerScreen sẽ dùng WebView để load embed URL.
-        // Ở đây chỉ set state + skip ExoPlayer setup.
-        if (episode.linkM3u8.isBlank()) {
-            AppLogger.w(
-                LogTags.PLAYER_VM,
-                "⚠ linkM3u8 is BLANK → using WebView mode (embed URL)"
-            )
-            AppLogger.d(LogTags.PLAYER_VM, "  embed URL: ${episode.linkEmbed}")
-            // Embed mode: đánh dấu isPlaying = true để UI ẩn loading
-            _uiState.update {
-                it.copy(
-                    isBuffering = false,
-                    isPlaying = true,
-                    durationMs = 0L,
-                    positionMs = 0L,
-                    bufferedMs = 0L,
-                )
+        // ⚡ LAZY EXTRACT: Nếu linkM3u8 rỗng (chưa extract), extract ngay tại đây.
+        // Chỉ extract 1 tập đang play — nhanh hơn nhiều so với extract tất cả.
+        if (episode.linkM3u8.isBlank() && episode.linkEmbed.isNotBlank()) {
+            AppLogger.i(LogTags.PLAYER_VM, "⚡ Lazy extracting m3u8 for this episode...")
+            _uiState.update { it.copy(isBuffering = true) }
+            viewModelScope.launch {
+                val m3u8Url = repository.extractM3u8ForEpisode(episode.linkEmbed)
+                if (m3u8Url.isNotBlank()) {
+                    AppLogger.success(LogTags.PLAYER_VM, "  ✓ m3u8 extracted: ${m3u8Url.take(80)}...")
+                    val updatedEpisode = episode.copy(linkM3u8 = m3u8Url)
+                    playWithExoPlayer(updatedEpisode, startPositionMs)
+                } else {
+                    AppLogger.e(LogTags.PLAYER_VM, "  ⚠ m3u8 extraction failed — falling back to WebView")
+                    _uiState.update {
+                        it.copy(
+                            isBuffering = false,
+                            isPlaying = true,
+                            durationMs = 0L,
+                            positionMs = 0L,
+                            bufferedMs = 0L,
+                        )
+                    }
+                }
             }
-            AppLogger.success(LogTags.PLAYER_VM, "WebView mode state set — PlayerScreen should show WebView")
             return
         }
+        // Nếu đã có m3u8 (extract trước đó), play trực tiếp
+        if (episode.linkM3u8.isNotBlank()) {
+            playWithExoPlayer(episode, startPositionMs)
+            return
+        }
+        // Fallback: WebView mode
+        AppLogger.w(LogTags.PLAYER_VM, "⚠ No m3u8 + no embed → WebView mode")
+        _uiState.update {
+            it.copy(
+                isBuffering = false,
+                isPlaying = true,
+                durationMs = 0L,
+                positionMs = 0L,
+                bufferedMs = 0L,
+            )
+        }
+    }
+
+    private fun playWithExoPlayer(episode: EpisodeDto, startPositionMs: Long) {
         AppLogger.i(LogTags.PLAYER_VM, "Using ExoPlayer mode with m3u8: ${episode.linkM3u8}")
-        // Extract host từ m3u8 URL để set Referer động cho interceptor.
-        // Mỗi tập có thể trên subdomain khác nhau (embed11, embed12, embed13, ...)
         val m3u8Host = try {
             val uri = android.net.Uri.parse(episode.linkM3u8)
             uri.host ?: ""
         } catch (e: Exception) { "" }
         currentStreamHost = m3u8Host
         AppLogger.i(LogTags.PLAYER_VM, "  Referer host set to: $m3u8Host")
-        // ⚠ Set mimeType = APPLICATION_M3U8 để ExoPlayer nhận biết đây là HLS stream.
-        // URL không có extension .m3u8 (chỉ là base64 token) → ExoPlayer
-        // mặc định dùng ProgressiveMediaSource (cho MP4/MP3) → crash.
         val mediaItem = MediaItem.Builder()
             .setUri(episode.linkM3u8)
             .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
