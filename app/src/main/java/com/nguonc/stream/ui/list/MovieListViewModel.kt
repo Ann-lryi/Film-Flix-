@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nguonc.stream.data.remote.dto.MovieItemDto
 import com.nguonc.stream.data.repository.MovieRepository
+import com.nguonc.stream.debug.AppLogger
 import com.nguonc.stream.ui.home.readableMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -73,8 +74,19 @@ class MovieListViewModel @Inject constructor(
             runCatching { fetch(page) }
                 .onSuccess { result ->
                     _uiState.update { state ->
+                        // ⚡ Deduplicate items by slug to prevent crash in LazyVerticalGrid
+                        // (key = { it.id } — duplicate keys = crash)
+                        val newItems = if (page == 1) {
+                            result.items
+                        } else {
+                            val existingSlugs = state.items.map { it.slug }.toSet()
+                            result.items.filter { it.slug !in existingSlugs }
+                        }
                         state.copy(
-                            items = if (page == 1) result.items else state.items + result.items,
+                            items = newItems.let { newEps ->
+                                if (page == 1) newEps
+                                else state.items + newEps
+                            },
                             currentPage = result.pagination.currentPage,
                             totalPages = result.pagination.totalPages,
                             isInitialLoading = false,
@@ -84,6 +96,7 @@ class MovieListViewModel @Inject constructor(
                     }
                 }
                 .onFailure { e ->
+                    AppLogger.e("MOVIE_LIST_VM", "loadPage($page) FAILED: ${e.message}", e)
                     _uiState.update {
                         if (page == 1) it.copy(isInitialLoading = false, error = e.readableMessage())
                         else it.copy(isLoadingMore = false, loadMoreError = true)

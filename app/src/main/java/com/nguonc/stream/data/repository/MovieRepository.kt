@@ -122,25 +122,57 @@ class MovieRepository @Inject constructor(
     }
 
     // ============================================================
-    // REMOTE — Browse (Categories/Countries) — vẫn dùng PhimApi
-    // (phimapi.com có endpoint /the-loai và /quoc-gia riêng)
+    // REMOTE — Browse (Categories/Countries) — dùng NguoncApi
     // ============================================================
 
+    /**
+     * Lấy phim theo thể loại — dùng NguoncApi /films/the-loai/{slug}
+     * ⚠ Slug phải là slug URL (vd: "hanh-dong"), KHÔNG phải ID hash.
+     * NguoncApi detail trả category list với id = hash, ta cần convert
+     * tên thể loại → slug URL.
+     */
     suspend fun getByCategory(slug: String, page: Int): MoviePage = io {
-        val res = api.getByCategory(slug, page)
-        val cdn = res.data.cdnImage
-        MoviePage(
-            items = res.data.items.map { it.normalizeImage(cdn) },
-            pagination = res.data.params.pagination,
-        )
+        AppLogger.d(LogTags.API, "→ GET /films/the-loai/$slug?page=$page (NguoncApi)")
+        try {
+            val res = nguoncApi.getTheLoai(slug, page)
+            AppLogger.success(LogTags.REPO, "getByCategory('$slug', page=$page) ✓ — ${res.items.size} items")
+            MoviePage(
+                items = res.items.map { it.toMovieItemDto() },
+                pagination = PaginationDto(
+                    totalItems = res.paginate.totalItems,
+                    totalItemsPerPage = res.paginate.itemsPerPage,
+                    currentPage = res.paginate.currentPage,
+                    totalPages = res.paginate.totalPage,
+                ),
+            )
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "getByCategory('$slug', page=$page) FAILED: ${e.message}", e)
+            throw e
+        }
     }
 
+    /**
+     * Lấy phim theo quốc gia — dùng NguoncApi /films/quoc-gia/{slug}
+     * NguoncApi dùng endpoint quoc-gia (khác PhimApi).
+     */
     suspend fun getByCountry(slug: String, page: Int): MoviePage = io {
-        val res = api.getByCountry(slug, page)
-        MoviePage(
-            items = res.data.items.map { it.normalizeImage(res.data.cdnImage) },
-            pagination = res.data.params.pagination,
-        )
+        AppLogger.d(LogTags.API, "→ GET /films/quoc-gia/$slug?page=$page (NguoncApi)")
+        try {
+            val res = nguoncApi.getQuocGia(slug, page)
+            AppLogger.success(LogTags.REPO, "getByCountry('$slug', page=$page) ✓ — ${res.items.size} items")
+            MoviePage(
+                items = res.items.map { it.toMovieItemDto() },
+                pagination = PaginationDto(
+                    totalItems = res.paginate.totalItems,
+                    totalItemsPerPage = res.paginate.itemsPerPage,
+                    currentPage = res.paginate.currentPage,
+                    totalPages = res.paginate.totalPage,
+                ),
+            )
+        } catch (e: Exception) {
+            AppLogger.e(LogTags.REPO, "getByCountry('$slug', page=$page) FAILED: ${e.message}", e)
+            throw e
+        }
     }
 
     // ============================================================
@@ -360,10 +392,15 @@ class MovieRepository @Inject constructor(
     /** NguoncMovieDetailDto → MovieDetailDto */
     private fun NguoncMovieDetailDto.toMovieDetailDto(): MovieDetailDto {
         // Phân tích category dict: {1: Định dạng, 2: Thể loại, 3: Năm, 4: Quốc gia}
-        val categories = category["2"]?.list?.map { CategoryDto(id = it.id, name = it.name, slug = it.id) }
-            ?: emptyList()
-        val countries = category["4"]?.list?.map { CategoryDto(id = it.id, name = it.name, slug = it.id) }
-            ?: emptyList()
+        // Category items từ NguoncApi có id = hash (vd: "c51ce410c124a10e0db5e4b97fc2af39")
+        // nhưng NguoncApi endpoint /films/the-loai/{slug} cần slug URL (vd: "chinh-kich").
+        // → Convert name → slug (bỏ dấu + lowercase + replace spaces với -)
+        val categories = category["2"]?.list?.map {
+            CategoryDto(id = it.id, name = it.name, slug = it.name.toSlug())
+        } ?: emptyList()
+        val countries = category["4"]?.list?.map {
+            CategoryDto(id = it.id, name = it.name, slug = it.name.toSlug())
+        } ?: emptyList()
         val yearStr = category["3"]?.list?.firstOrNull()?.name ?: "0"
         val year = yearStr.toIntOrNull() ?: 0
         val directors = director?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }
@@ -404,6 +441,20 @@ class MovieRepository @Inject constructor(
             startsWith("/") -> "$cdn$this"
             else -> "$cdn/$this"
         }
+
+    /**
+     * Convert Vietnamese name → URL slug.
+     * Vd: "Chính Kịch" → "chinh-kich", "Hàn Quốc" → "han-quoc", "Pháp" → "phap"
+     */
+    private fun String.toSlug(): String {
+        val normalized = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+        val noDiacritics = normalized.replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+        return noDiacritics.lowercase()
+            .replace("đ", "d")
+            .replace(Regex("[^a-z0-9\\s-]"), "")
+            .trim()
+            .replace(Regex("\\s+"), "-")
+    }
 
     private fun MovieItemDto.normalizeImage(cdn: String = PhimApi.CDN_IMAGE): MovieItemDto =
         copy(posterUrl = posterUrl.absoluteImageUrl(cdn), thumbUrl = thumbUrl.absoluteImageUrl(cdn))

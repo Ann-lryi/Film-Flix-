@@ -43,6 +43,13 @@ interface NguoncApi {
         @Query("page") page: Int = 1,
     ): NguoncListResponse
 
+    /** Theo quốc gia (vd: han-quoc, nhat-ban, ...) — dùng /films/quoc-gia/{slug} */
+    @GET("films/quoc-gia/{slug}")
+    suspend fun getQuocGia(
+        @Path("slug") slug: String,
+        @Query("page") page: Int = 1,
+    ): NguoncListResponse
+
     /** Chi tiết phim — dùng /film/{slug} (note: "film" singular) */
     @GET("film/{slug}")
     suspend fun getFilmDetail(

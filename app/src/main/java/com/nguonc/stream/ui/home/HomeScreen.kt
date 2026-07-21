@@ -153,7 +153,7 @@ fun HomeScreen(
                                     contentPadding = PaddingValues(horizontal = 20.dp),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    items(section.items, key = { it.id }) { movie ->
+                                    items(section.items, key = { it.slug }) { movie ->
                                         MoviePosterCard(
                                             movie = movie,
                                             onClick = { onMovieClick(movie.slug) },

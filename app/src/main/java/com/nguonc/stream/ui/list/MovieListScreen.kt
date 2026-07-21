@@ -165,7 +165,7 @@ fun MovieListScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    items(state.items, key = { it.id }) { movie ->
+                    items(state.items, key = { it.slug }) { movie ->
                         MoviePosterCard(movie = movie, onClick = { onMovieClick(movie.slug) })
                     }
                     if (state.isLoadingMore) {

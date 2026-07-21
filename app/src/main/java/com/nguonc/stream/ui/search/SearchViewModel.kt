@@ -81,8 +81,15 @@ class SearchViewModel @Inject constructor(
         runCatching { repository.search(query, page) }
             .onSuccess { result ->
                 _uiState.update { state ->
+                    // ⚡ Deduplicate by slug to prevent crash
+                    val newItems = if (page == 1) {
+                        result.items
+                    } else {
+                        val existingSlugs = state.items.map { it.slug }.toSet()
+                        result.items.filter { it.slug !in existingSlugs }
+                    }
                     state.copy(
-                        items = if (page == 1) result.items else state.items + result.items,
+                        items = if (page == 1) newItems else state.items + newItems,
                         currentPage = result.pagination.currentPage,
                         totalPages = result.pagination.totalPages,
                         isLoading = false,

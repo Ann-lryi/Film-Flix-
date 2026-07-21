@@ -231,7 +231,7 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.spacedBy(18.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(state.items, key = { it.id }) { movie ->
+                        items(state.items, key = { it.slug }) { movie ->
                             MoviePosterCard(movie = movie, onClick = { onMovieClick(movie.slug) })
                         }
                         if (state.isLoadingMore) {
