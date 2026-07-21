@@ -34,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -73,6 +75,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var quickInfoMovie by remember { mutableStateOf<com.nguonc.stream.data.remote.dto.MovieItemDto?>(null) }
 
     Box(
         modifier = Modifier
@@ -157,6 +160,7 @@ fun HomeScreen(
                                         MoviePosterCard(
                                             movie = movie,
                                             onClick = { onMovieClick(movie.slug) },
+                                            onLongClick = { quickInfoMovie = movie },
                                             modifier = Modifier.width(152.dp),
                                         )
                                     }
@@ -204,6 +208,18 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    // Quick info bottom sheet (long-press)
+    quickInfoMovie?.let { movie ->
+        com.nguonc.stream.ui.components.QuickInfoBottomSheet(
+            movie = movie,
+            onDismiss = { quickInfoMovie = null },
+            onClick = {
+                quickInfoMovie = null
+                onMovieClick(movie.slug)
+            }
+        )
     }
 }
 

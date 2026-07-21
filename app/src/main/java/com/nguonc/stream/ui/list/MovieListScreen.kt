@@ -34,7 +34,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.nguonc.stream.data.remote.dto.MovieItemDto
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -65,6 +68,7 @@ fun MovieListScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
+    var quickInfoMovie by remember { mutableStateOf<MovieItemDto?>(null) }
 
     LaunchedEffect(source, key) { viewModel.init(source, key) }
 
@@ -139,10 +143,10 @@ fun MovieListScreen(
                         border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                         modifier = Modifier.padding(end = 8.dp).size(42.dp)
                     ) {
-                        IconButton(onClick = {}) {
+                        IconButton(onClick = { /* TODO: filter sheet */ }) {
                             Icon(
                                 FilmFlixIcons.FilterOutline,
-                                contentDescription = "Lọc",
+                                contentDescription = "Sắp xếp",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -166,7 +170,11 @@ fun MovieListScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     items(state.items, key = { it.slug }) { movie ->
-                        MoviePosterCard(movie = movie, onClick = { onMovieClick(movie.slug) })
+                        MoviePosterCard(
+                            movie = movie,
+                            onClick = { onMovieClick(movie.slug) },
+                            onLongClick = { quickInfoMovie = movie },
+                        )
                     }
                     if (state.isLoadingMore) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -196,5 +204,17 @@ fun MovieListScreen(
                 }
             }
         }
+    }
+
+    // Quick info bottom sheet (long-press)
+    quickInfoMovie?.let { movie ->
+        com.nguonc.stream.ui.components.QuickInfoBottomSheet(
+            movie = movie,
+            onDismiss = { quickInfoMovie = null },
+            onClick = {
+                quickInfoMovie = null
+                onMovieClick(movie.slug)
+            }
+        )
     }
 }

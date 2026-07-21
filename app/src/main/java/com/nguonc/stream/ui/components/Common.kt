@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -90,6 +91,7 @@ import java.util.Locale
 //  • Better typographic rhythm
 //  • Animated press border
 // ======================================================
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MoviePosterCard(
     movie: MovieItemDto,
@@ -97,7 +99,8 @@ fun MoviePosterCard(
     modifier: Modifier = Modifier,
     showTitle: Boolean = true,
     aspect: Float = 2f / 3f,
-    cornerRadius: Dp = 20.dp
+    cornerRadius: Dp = 20.dp,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -115,10 +118,21 @@ fun MoviePosterCard(
     Column(
         modifier = modifier
             .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick,
+                        onLongClick = onLongClick,
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onClick
+                    )
+                }
             )
     ) {
         Card(
@@ -1163,6 +1177,127 @@ fun ShimmerPosterRow(modifier: Modifier = Modifier) {
     ) {
         repeat(4) {
             ShimmerCard(modifier = Modifier.width(136.dp))
+        }
+    }
+}
+
+// ======================================================
+// QUICK INFO BOTTOM SHEET — Hiển thị khi long-press poster
+// ======================================================
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun QuickInfoBottomSheet(
+    movie: MovieItemDto,
+    onDismiss: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = AppShapes.XXLarge,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(40.dp)
+                    .height(4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            )
+        }
+    ) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .clickable(onClick = onClick),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Poster thumbnail
+                Card(
+                    shape = AppShapes.Medium,
+                    elevation = CardDefaults.cardElevation(defaultElevation = Elevation.S),
+                    modifier = Modifier
+                        .width(100.dp)
+                        .aspectRatio(2f / 3f)
+                ) {
+                    AsyncImage(
+                        model = movie.posterUrl,
+                        contentDescription = movie.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Title
+                    Text(
+                        text = movie.name,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (movie.originName.isNotBlank() && movie.originName != movie.name) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = movie.originName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Meta info row
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        movie.quality?.takeIf { it.isNotBlank() }?.let {
+                            PremiumQualityBadge(text = it.uppercase())
+                        }
+                        movie.episodeCurrent?.takeIf { it.isNotBlank() }?.let {
+                            GlassChip(text = it)
+                        }
+                        movie.lang?.takeIf { it.isNotBlank() }?.let {
+                            GlassChip(text = it)
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // View detail button
+                    Surface(
+                        shape = AppShapes.Pill,
+                        color = Primary,
+                        modifier = Modifier.clickable(onClick = onClick)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                FilmFlixIcons.PlayFilled, null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                "Xem chi tiết",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

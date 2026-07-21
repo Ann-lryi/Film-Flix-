@@ -65,7 +65,9 @@ class MovieListViewModel @Inject constructor(
     fun retryInitial() = refresh()
 
     private fun loadPage(page: Int) {
-        loadJob?.cancel()
+        // Chỉ cancel job cũ khi load page 1 (refresh/initial).
+        // Khi load more (page > 1), KHÔNG cancel — nếu không sẽ cancel chính nó.
+        if (page == 1) loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.update {
                 if (page == 1) it.copy(isInitialLoading = true, error = null)
@@ -74,8 +76,7 @@ class MovieListViewModel @Inject constructor(
             runCatching { fetch(page) }
                 .onSuccess { result ->
                     _uiState.update { state ->
-                        // ⚡ Deduplicate items by slug to prevent crash in LazyVerticalGrid
-                        // (key = { it.id } — duplicate keys = crash)
+                        // ⚡ Deduplicate items by slug to prevent crash
                         val newItems = if (page == 1) {
                             result.items
                         } else {
@@ -83,10 +84,7 @@ class MovieListViewModel @Inject constructor(
                             result.items.filter { it.slug !in existingSlugs }
                         }
                         state.copy(
-                            items = newItems.let { newEps ->
-                                if (page == 1) newEps
-                                else state.items + newEps
-                            },
+                            items = if (page == 1) newItems else state.items + newItems,
                             currentPage = result.pagination.currentPage,
                             totalPages = result.pagination.totalPages,
                             isInitialLoading = false,

@@ -75,6 +75,7 @@ fun SearchScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    var quickInfoMovie by remember { androidx.compose.runtime.mutableStateOf<com.nguonc.stream.data.remote.dto.MovieItemDto?>(null) }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -232,7 +233,11 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(state.items, key = { it.slug }) { movie ->
-                            MoviePosterCard(movie = movie, onClick = { onMovieClick(movie.slug) })
+                            MoviePosterCard(
+                                movie = movie,
+                                onClick = { onMovieClick(movie.slug) },
+                                onLongClick = { quickInfoMovie = movie },
+                            )
                         }
                         if (state.isLoadingMore) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -406,5 +411,17 @@ private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
                 }
             }
         }
+    }
+
+    // Quick info bottom sheet (long-press)
+    quickInfoMovie?.let { movie ->
+        com.nguonc.stream.ui.components.QuickInfoBottomSheet(
+            movie = movie,
+            onDismiss = { quickInfoMovie = null },
+            onClick = {
+                quickInfoMovie = null
+                onMovieClick(movie.slug)
+            }
+        )
     }
 }
