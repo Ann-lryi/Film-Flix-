@@ -391,11 +391,17 @@ class PlayerViewModel @Inject constructor(
         } catch (e: Exception) { "" }
         currentStreamHost = m3u8Host
         AppLogger.i(LogTags.PLAYER_VM, "  Referer host set to: $m3u8Host")
-        val mediaItem = MediaItem.fromUri(episode.linkM3u8)
+        // ⚠ Set mimeType = APPLICATION_M3U8 để ExoPlayer nhận biết đây là HLS stream.
+        // URL không có extension .m3u8 (chỉ là base64 token) → ExoPlayer
+        // mặc định dùng ProgressiveMediaSource (cho MP4/MP3) → crash.
+        val mediaItem = MediaItem.Builder()
+            .setUri(episode.linkM3u8)
+            .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+            .build()
         player.setMediaItem(mediaItem, startPositionMs)
         player.prepare()
         player.playWhenReady = true
-        AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared + playWhenReady=true")
+        AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared + playWhenReady=true (HLS mode)")
     }
 
     fun togglePlayPause() {
