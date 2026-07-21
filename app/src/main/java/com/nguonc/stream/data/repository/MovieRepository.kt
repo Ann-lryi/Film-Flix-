@@ -247,19 +247,22 @@ class MovieRepository @Inject constructor(
             val decodedJson = String(java.util.Base64.getDecoder().decode(obfEncoded))
             // Parse JSON manually (avoid kotlinx.serialization for this small case)
             val sUbRegex = Regex(""""sUb"\s*:\s*"([^"]+)"""")
-            val sUb = sUbRegex.find(decodedJson)?.groupValues?.[1] ?: run {
+            val sUbMatch = sUbRegex.find(decodedJson)
+            if (sUbMatch == null) {
                 AppLogger.w(LogTags.REPO, "  ⚠ sUb not found in decoded JSON: $decodedJson")
                 return ""
             }
+            val sUb = sUbMatch.groupValues[1]
             // Build direct m3u8 URL: same host as embed URL + "/" + sUb (NO ?d=1)
             // embedUrl = https://embed13.streamc.xyz/embed.php?hash=...
             // → m3u8Url = https://embed13.streamc.xyz/{sUb}
             val hostRegex = Regex("""(https?://[^/]+)""")
-            val host = hostRegex.find(embedUrl)?.groupValues?.[1] ?: ""
-            if (host.isBlank()) {
+            val hostMatch = hostRegex.find(embedUrl)
+            if (hostMatch == null) {
                 AppLogger.w(LogTags.REPO, "  ⚠ cannot extract host from embed URL")
                 return ""
             }
+            val host = hostMatch.groupValues[1]
             val m3u8Url = "$host/$sUb"
             AppLogger.success(LogTags.REPO, "  ✓ extracted m3u8: $m3u8Url")
             m3u8Url
