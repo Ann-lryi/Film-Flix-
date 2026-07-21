@@ -115,21 +115,42 @@ class PlayerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
+    /**
+     * Host của m3u8 URL hiện tại (vd: "embed11.streamc.xyz").
+     * Updated mỗi khi play() được gọi.
+     * Interceptor dùng giá trị này để set Referer động cho mọi request
+     * (m3u8 playlist + segments trên thais.hihihoho3.top đều cần cùng Referer).
+     */
+    @Volatile
+    private var currentStreamHost: String = ""
+
     /** Player sống trong ViewModel để không mất tiến trình khi xoay màn hình. */
     val player: ExoPlayer by lazy {
         // Custom DataSourceFactory chèn Referer + User-Agent headers cho m3u8 streams.
         // Streamc.xyz CDN yêu cầu Referer = embedXX.streamc.xyz (iframe origin).
+        // Referer phải ĐỘNG theo host của m3u8 URL (mỗi tập có thể khác subdomain).
         val dataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
             okhttp3.OkHttpClient.Builder()
                 .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .addInterceptor { chain ->
-                    val request = chain.request().newBuilder()
+                    val request = chain.request()
+                    val referer = if (currentStreamHost.isNotBlank()) {
+                        "https://$currentStreamHost/"
+                    } else {
+                        "https://${request.url.host}/"
+                    }
+                    val origin = if (currentStreamHost.isNotBlank()) {
+                        "https://$currentStreamHost"
+                    } else {
+                        "https://${request.url.host}"
+                    }
+                    val newRequest = request.newBuilder()
                         .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
-                        .header("Referer", "https://embed13.streamc.xyz/")
-                        .header("Origin", "https://embed13.streamc.xyz")
+                        .header("Referer", referer)
+                        .header("Origin", origin)
                         .build()
-                    chain.proceed(request)
+                    chain.proceed(newRequest)
                 }
                 .build()
         )
@@ -348,6 +369,14 @@ class PlayerViewModel @Inject constructor(
             return
         }
         AppLogger.i(LogTags.PLAYER_VM, "Using ExoPlayer mode with m3u8: ${episode.linkM3u8}")
+        // Extract host từ m3u8 URL để set Referer động cho interceptor.
+        // Mỗi tập có thể trên subdomain khác nhau (embed11, embed12, embed13, ...)
+        val m3u8Host = try {
+            val uri = android.net.Uri.parse(episode.linkM3u8)
+            uri.host ?: ""
+        } catch (e: Exception) { "" }
+        currentStreamHost = m3u8Host
+        AppLogger.i(LogTags.PLAYER_VM, "  Referer host set to: $m3u8Host")
         val mediaItem = MediaItem.fromUri(episode.linkM3u8)
         player.setMediaItem(mediaItem, startPositionMs)
         player.prepare()
