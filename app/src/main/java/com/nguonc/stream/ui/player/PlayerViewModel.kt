@@ -135,21 +135,35 @@ class PlayerViewModel @Inject constructor(
                 .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .addInterceptor { chain ->
                     val request = chain.request()
+                    val url = request.url.toString()
                     val referer = if (currentStreamHost.isNotBlank()) {
                         "https://$currentStreamHost/"
                     } else {
                         "https://${request.url.host}/"
                     }
-                    val origin = if (currentStreamHost.isNotBlank()) {
-                        "https://$currentStreamHost"
+                    // Phân biệt request types:
+                    // - m3u8 playlist (URL chứa sUb token, host = embedXX.streamc.xyz):
+                    //   CHỈ set Referer, KHÔNG set Origin → CDN trả standard HLS m3u8
+                    //   (nếu có Origin → CDN trả AES-GCM encrypted m3u8 → ExoPlayer crash)
+                    // - segment (URL kết thúc .png/.ts, host = philiXX.amassXX.top):
+                    //   CẦN CẢ Referer VÀ Origin = https://embedXX.streamc.xyz
+                    //   (nếu thiếu Origin → 403 Forbidden)
+                    val isSegment = url.contains(".png") || url.contains(".ts") ||
+                        url.contains(".mp4") || url.contains("amass") ||
+                        url.contains("hihihoho")
+                    val newRequest = if (isSegment && currentStreamHost.isNotBlank()) {
+                        request.newBuilder()
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+                            .header("Referer", referer)
+                            .header("Origin", "https://$currentStreamHost")
+                            .build()
                     } else {
-                        "https://${request.url.host}"
+                        // m3u8 playlist — NO Origin header
+                        request.newBuilder()
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
+                            .header("Referer", referer)
+                            .build()
                     }
-                    val newRequest = request.newBuilder()
-                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36")
-                        .header("Referer", referer)
-                        .header("Origin", origin)
-                        .build()
                     chain.proceed(newRequest)
                 }
                 .build()
