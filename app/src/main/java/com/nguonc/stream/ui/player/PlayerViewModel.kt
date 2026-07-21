@@ -382,6 +382,9 @@ class PlayerViewModel @Inject constructor(
                 val m3u8Url = repository.extractM3u8ForEpisode(episode.linkEmbed)
                 if (m3u8Url.isNotBlank()) {
                     AppLogger.success(LogTags.PLAYER_VM, "  ✓ m3u8 extracted: ${m3u8Url.take(80)}...")
+                    // ⚡ Update servers list trong state để useWebView = false
+                    // (nếu không update, useWebView vẫn thấy linkM3u8="" → render WebView → che ExoPlayer)
+                    updateEpisodeM3u8InState(episode.slug, m3u8Url)
                     val updatedEpisode = episode.copy(linkM3u8 = m3u8Url)
                     playWithExoPlayer(updatedEpisode, startPositionMs)
                 } else {
@@ -433,6 +436,27 @@ class PlayerViewModel @Inject constructor(
         player.prepare()
         player.playWhenReady = true
         AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared + playWhenReady=true (HLS mode)")
+    }
+
+    /**
+     * Update linkM3u8 cho 1 episode trong servers list (state).
+     * Cần thiết sau lazy extract để useWebView computed property
+     * trả về false → PlayerScreen render ExoPlayer (không WebView).
+     */
+    private fun updateEpisodeM3u8InState(episodeSlug: String, m3u8Url: String) {
+        _uiState.update { state ->
+            val updatedServers = state.servers.map { server ->
+                val updatedEps = server.episodes.map { ep ->
+                    if (ep.slug == episodeSlug) {
+                        ep.copy(linkM3u8 = m3u8Url)
+                    } else {
+                        ep
+                    }
+                }
+                server.copy(episodes = updatedEps)
+            }
+            state.copy(servers = updatedServers)
+        }
     }
 
     fun togglePlayPause() {
