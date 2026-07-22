@@ -40,7 +40,8 @@ class MovieListViewModel @Inject constructor(
 
     private var source: MovieListSource = MovieListSource.LIST
     private var key: String = ""
-    private var loadJob: Job? = null
+    private var initialJob: Job? = null
+    private var loadMoreJob: Job? = null
     private var initialized = false
 
     fun init(source: MovieListSource, key: String) {
@@ -53,22 +54,27 @@ class MovieListViewModel @Inject constructor(
 
     fun refresh() {
         _uiState.value = MovieListUiState()
-        loadPage(1)
+        initialized = false
+        init(source, key)
     }
 
     fun loadNextPage() {
         val state = _uiState.value
-        if (!state.canLoadMore || loadJob?.isActive == true) return
+        // Guard: không load more nếu đang loading, đã hết trang, hoặc có lỗi
+        if (!state.canLoadMore) return
+        if (loadMoreJob?.isActive == true) return
+        if (initialJob?.isActive == true) return
         loadPage(state.currentPage + 1)
     }
 
     fun retryInitial() = refresh()
 
     private fun loadPage(page: Int) {
-        // Chỉ cancel job cũ khi load page 1 (refresh/initial).
-        // Khi load more (page > 1), KHÔNG cancel — nếu không sẽ cancel chính nó.
-        if (page == 1) loadJob?.cancel()
-        loadJob = viewModelScope.launch {
+        if (page == 1) {
+            initialJob?.cancel()
+            loadMoreJob?.cancel()
+        }
+        val job = viewModelScope.launch {
             _uiState.update {
                 if (page == 1) it.copy(isInitialLoading = true, error = null)
                 else it.copy(isLoadingMore = true, loadMoreError = false)
@@ -76,7 +82,7 @@ class MovieListViewModel @Inject constructor(
             runCatching { fetch(page) }
                 .onSuccess { result ->
                     _uiState.update { state ->
-                        // ⚡ Deduplicate items by slug to prevent crash
+                        // Deduplicate items by slug to prevent crash
                         val newItems = if (page == 1) {
                             result.items
                         } else {
@@ -90,8 +96,10 @@ class MovieListViewModel @Inject constructor(
                             isInitialLoading = false,
                             isLoadingMore = false,
                             error = null,
+                            loadMoreError = false,
                         )
                     }
+                    AppLogger.d("MOVIE_LIST_VM", "loadPage($page) ✓ — ${result.items.size} items, page ${result.pagination.currentPage}/${result.pagination.totalPages}")
                 }
                 .onFailure { e ->
                     AppLogger.e("MOVIE_LIST_VM", "loadPage($page) FAILED: ${e.message}", e)
@@ -101,6 +109,7 @@ class MovieListViewModel @Inject constructor(
                     }
                 }
         }
+        if (page == 1) initialJob = job else loadMoreJob = job
     }
 
     private suspend fun fetch(page: Int) = when (source) {
