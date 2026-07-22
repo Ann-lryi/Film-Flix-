@@ -41,7 +41,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +77,7 @@ fun SearchScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gridState = rememberLazyGridState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    var quickInfoMovie by remember { androidx.compose.runtime.mutableStateOf<com.nguonc.stream.data.remote.dto.MovieItemDto?>(null) }
+    var quickInfoMovie by remember { mutableStateOf<com.nguonc.stream.data.remote.dto.MovieItemDto?>(null) }
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -257,6 +259,18 @@ fun SearchScreen(
                 }
             }
         }
+
+        // Quick info bottom sheet (long-press)
+        quickInfoMovie?.let { movie ->
+            com.nguonc.stream.ui.components.QuickInfoBottomSheet(
+                movie = movie,
+                onDismiss = { quickInfoMovie = null },
+                onClick = {
+                    quickInfoMovie = null
+                    onMovieClick(movie.slug)
+                }
+            )
+        }
     }
 }
 
@@ -411,17 +425,5 @@ private fun SearchSuggestions(onKeywordClick: (String) -> Unit) {
                 }
             }
         }
-    }
-
-    // Quick info bottom sheet (long-press)
-    quickInfoMovie?.let { movie ->
-        com.nguonc.stream.ui.components.QuickInfoBottomSheet(
-            movie = movie,
-            onDismiss = { quickInfoMovie = null },
-            onClick = {
-                quickInfoMovie = null
-                onMovieClick(movie.slug)
-            }
-        )
     }
 }
