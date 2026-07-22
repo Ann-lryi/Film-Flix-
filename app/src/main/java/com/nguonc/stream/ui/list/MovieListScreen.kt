@@ -79,8 +79,16 @@ fun MovieListScreen(
             info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 6
         }
     }
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadNextPage()
+    // ⚡ Theo dõi CẢ shouldLoadMore VÀ currentPage để trigger load more liên tục.
+    // Trước đây: LaunchedEffect(shouldLoadMore) chỉ fire khi shouldLoadMore ĐỔI
+    // (true→false→true). Nếu shouldLoadMore stays true sau khi load page 2,
+    // nó KHÔNG fire lại → không load page 3+.
+    // Fix: combine shouldLoadMore + state.currentPage + state.items.size
+    // thành 1 key duy nhất → fire mỗi khi conditions thay đổi.
+    LaunchedEffect(shouldLoadMore, state.currentPage, state.items.size, state.isLoadingMore) {
+        if (shouldLoadMore && !state.isLoadingMore && state.error == null) {
+            viewModel.loadNextPage()
+        }
     }
 
     Scaffold(

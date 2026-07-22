@@ -86,8 +86,11 @@ fun SearchScreen(
             info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 6
         }
     }
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadNextPage()
+    // ⚡ Combine multiple keys để trigger load more liên tục (xem MovieListScreen fix)
+    LaunchedEffect(shouldLoadMore, state.currentPage, state.items.size, state.isLoadingMore) {
+        if (shouldLoadMore && !state.isLoadingMore && state.error == null) {
+            viewModel.loadNextPage()
+        }
     }
 
     Column(
