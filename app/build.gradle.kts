@@ -102,6 +102,9 @@ dependencies {
     // Coil (2.x: tải ảnh qua OkHttp có sẵn trong coil-base)
     implementation(libs.coil.compose)
 
+    // Jsoup (HTML parser for animevietsub)
+    implementation(libs.jsoup)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 }
