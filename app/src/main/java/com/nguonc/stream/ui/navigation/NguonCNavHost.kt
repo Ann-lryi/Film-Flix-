@@ -9,7 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.nguonc.stream.debug.DebugLogScreen
 import com.nguonc.stream.ui.anime.AnimeDetailScreen
-import com.nguonc.stream.ui.anime.AnimeScreen
+import com.nguonc.stream.ui.anime.AnimeWebViewScreen
 import com.nguonc.stream.ui.browse.BrowseScreen
 import com.nguonc.stream.ui.detail.DetailScreen
 import com.nguonc.stream.ui.home.HomeScreen
@@ -86,8 +86,9 @@ fun NguonCNavHost(navController: NavHostController) {
             )
         }
         composable(Routes.ANIME) {
-            AnimeScreen(
+            AnimeWebViewScreen(
                 onAnimeClick = { slug -> navController.navigate(Routes.animeDetail(slug)) },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.LIBRARY) {
