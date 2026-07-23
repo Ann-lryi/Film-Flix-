@@ -93,6 +93,12 @@ object AppModule {
             .build()
             .create(NguoncApi::class.java)
 
+
+    @Provides
+    @Singleton
+    fun provideAnimeVietsubApi(client: OkHttpClient): com.nguonc.stream.data.remote.AnimeVietsubApi =
+        com.nguonc.stream.data.remote.AnimeVietsubApi(client)
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
