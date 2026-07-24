@@ -281,7 +281,8 @@ fun PlayerScreen(
                                 modifier = Modifier.size(40.dp)
                             )
                         }
-                    }
+                    } // end if isBuffering
+                } // end else (ExoPlayer)
 
                 // ---------- Custom Controls Overlay ----------
                 AnimatedVisibility(
