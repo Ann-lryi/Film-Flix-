@@ -173,21 +173,35 @@ class PlayerViewModel @Inject constructor(
                 androidx.media3.exoplayer.source.DefaultMediaSourceFactory(appContext)
                     .setDataSourceFactory(dataSourceFactory)
             )
-            // ⚡ Load control: buffer nhanh hơn để video play sớm
+            // ⚡ Load control: buffer tối ưu cho seek mượt
             .setLoadControl(
                 androidx.media3.exoplayer.DefaultLoadControl.Builder()
                     .setBufferDurationsMs(
-                        1000,   // minBufferMs — buffer tối thiểu trước khi play (1s)
-                        5000,   // maxBufferMs — buffer tối đa (5s)
-                        500,    // playbackBufferMs — play khi có 0.5s buffer (nhanh)
-                        1000,   // rebufferMs — rebuffer khi buffer < 1s
+                        15000,  // minBufferMs — 15s buffer tối thiểu (để tua xa không bị trống)
+                        50000,  // maxBufferMs — 50s buffer tối đa (tua xa vẫn có data)
+                        1500,   // playbackBufferMs — play khi có 1.5s buffer
+                        3000,   // rebufferMs — rebuffer khi buffer < 3s
                     )
                     .setTargetBufferBytes(androidx.media3.exoplayer.DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
             )
+            .setSeekParameters(androidx.media3.exoplayer.SeekParameters.DEFAULT)
             .build().apply {
                 playWhenReady = true
+                // ⚡ Pause khi seek để không phát đoạn cũ trong khi buffer đoạn mới
+                addListener(object : Player.Listener {
+                    override fun onPositionDiscontinuity(
+                        oldPosition: Player.PositionInfo,
+                        newPosition: Player.PositionInfo,
+                        reason: Int
+                    ) {
+                        if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                            // Seek xong → set buffering state
+                            _uiState.update { it.copy(isBuffering = true) }
+                        }
+                    }
+                })
             }
     }
 
@@ -469,12 +483,25 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun seekTo(positionMs: Long) {
-        player.seekTo(positionMs.coerceIn(0, player.duration.coerceAtLeast(0)))
+        val target = positionMs.coerceIn(0, player.duration.coerceAtLeast(0))
+        val currentPos = player.currentPosition
+        val delta = kotlin.math.abs(target - currentPos)
+        // ⚡ Nếu tua xa (>10s), pause trước khi seek để tránh phát đoạn cũ
+        if (delta > 10_000) {
+            AppLogger.i(LogTags.PLAYER, "seekTo: long seek (${delta}ms) — pausing first")
+            player.pause()
+            _uiState.update { it.copy(isBuffering = true) }
+            player.seekTo(target)
+            // Resume play sau khi seek (ExoPlayer tự resume khi buffer xong)
+            player.playWhenReady = true
+        } else {
+            player.seekTo(target)
+        }
     }
 
     fun seekRelative(deltaMs: Long) {
         val target = (player.currentPosition + deltaMs).coerceIn(0, player.duration.coerceAtLeast(0))
-        player.seekTo(target)
+        seekTo(target)
     }
 
     fun setPlaybackSpeed(speed: Float) {
