@@ -82,7 +82,6 @@ private data class TopDestination(
 
 private val topDestinations = listOf(
     TopDestination(Routes.HOME, "Trang chủ", FilmFlixIcons.HomeOutline, FilmFlixIcons.HomeOutline),
-    TopDestination(Routes.ANIME, "Anime", FilmFlixIcons.PlayFilled, FilmFlixIcons.PlayFilled),
     TopDestination(Routes.SEARCH, "Tìm kiếm", FilmFlixIcons.SearchOutline, FilmFlixIcons.SearchOutline),
     TopDestination(Routes.BROWSE, "Khám phá", FilmFlixIcons.CompassOutline, FilmFlixIcons.CompassOutline),
     TopDestination(Routes.LIBRARY, "Của tôi", FilmFlixIcons.BookmarkOutline, FilmFlixIcons.BookmarkOutline),

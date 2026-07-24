@@ -8,8 +8,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.nguonc.stream.debug.DebugLogScreen
-import com.nguonc.stream.ui.anime.AnimeDetailScreen
-import com.nguonc.stream.ui.anime.AnimeWebViewScreen
 import com.nguonc.stream.ui.browse.BrowseScreen
 import com.nguonc.stream.ui.detail.DetailScreen
 import com.nguonc.stream.ui.home.HomeScreen
@@ -24,9 +22,6 @@ object Routes {
     const val SEARCH = "search"
     const val BROWSE = "browse"
     const val LIBRARY = "library"
-    const val ANIME = "anime"
-    const val ANIME_DETAIL = "anime_detail/{slug}"
-    const val ANIME_PLAYER = "anime_player/{url}"
     const val GRID = "grid/{source}/{key}/{title}"
     const val DETAIL = "detail/{slug}"
     const val PLAYER = "player/{slug}?ep={ep}&server={server}"
@@ -37,9 +32,7 @@ object Routes {
 
     fun detail(slug: String): String = "detail/$slug"
 
-    fun animeDetail(slug: String): String = "anime_detail/$slug"
 
-    fun animePlayer(url: String): String = "anime_player/${Uri.encode(url)}"
 
     /**
      * Player route now carries the selected server index so the player
@@ -83,12 +76,6 @@ fun NguonCNavHost(navController: NavHostController) {
                 onCountryClick = { slug, name ->
                     navController.navigate(Routes.grid(MovieListSource.COUNTRY, slug, name))
                 },
-            )
-        }
-        composable(Routes.ANIME) {
-            AnimeWebViewScreen(
-                onAnimeClick = { slug -> navController.navigate(Routes.animeDetail(slug)) },
-                onBack = { navController.popBackStack() },
             )
         }
         composable(Routes.LIBRARY) {
@@ -166,9 +153,7 @@ fun NguonCNavHost(navController: NavHostController) {
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(
-            route = Routes.ANIME_DETAIL,
-            arguments = listOf(navArgument("slug") { type = NavType.StringType }),
+,
         ) { backStackEntry ->
             val slug = backStackEntry.arguments?.getString("slug").orEmpty()
             AnimeDetailScreen(
