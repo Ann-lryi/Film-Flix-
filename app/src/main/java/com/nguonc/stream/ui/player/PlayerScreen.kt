@@ -209,6 +209,7 @@ fun PlayerScreen(
             )
             else -> {
                 // Chọn player: WebView (cho embed URL từ NguoncApi) hoặc ExoPlayer (cho m3u8)
+                // ⚠ Chỉ render 1 player tại 1 thời điểm — không render cả 2 cùng lúc
                 if (state.useWebView) {
                     AppLogger.i(LogTags.PLAYER, "PlayerScreen: rendering EmbedWebViewPlayer (useWebView=true)")
                     AppLogger.i(LogTags.PLAYER, "  embedUrl = ${state.currentPlayUrl}")
@@ -228,9 +229,7 @@ fun PlayerScreen(
                                 setShowNextButton(false)
                                 setShowPreviousButton(false)
                                 this.player = player
-                                // ⚡ Giữ last frame khi seek/buffer — không nháy đen
                                 setKeepContentOnPlayerReset(true)
-                                // ⚡ Tắt animation khi attach player
                                 setUseArtwork(false)
                             }
                         },
@@ -258,8 +257,7 @@ fun PlayerScreen(
                             },
                     )
 
-                    // ⚡ Loading overlay — chỉ hiện khi KHÔNG đang play
-                    // (không hiện khi đang play nhưng buffer tạm thời — tránh nhấp nháy)
+                    // Loading overlay — chỉ hiện khi chưa play (tránh che video khi đang phát)
                     if (state.isBuffering && !state.isPlaying) {
                         if (state.posterUrl.isNotBlank()) {
                             AsyncImage(
@@ -281,8 +279,8 @@ fun PlayerScreen(
                                 modifier = Modifier.size(40.dp)
                             )
                         }
-                    } // end if isBuffering
-                } // end else (ExoPlayer)
+                    }
+                }
 
                 // ---------- Custom Controls Overlay ----------
                 AnimatedVisibility(
