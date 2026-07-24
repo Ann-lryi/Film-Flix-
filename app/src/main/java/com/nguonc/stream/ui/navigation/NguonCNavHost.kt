@@ -153,14 +153,5 @@ fun NguonCNavHost(navController: NavHostController) {
                 onBack = { navController.popBackStack() },
             )
         }
-,
-        ) { backStackEntry ->
-            val slug = backStackEntry.arguments?.getString("slug").orEmpty()
-            AnimeDetailScreen(
-                slug = slug,
-                onBack = { navController.popBackStack() },
-                onPlay = { url -> navController.navigate(Routes.animePlayer(url)) },
-            )
-        }
     }
 }
