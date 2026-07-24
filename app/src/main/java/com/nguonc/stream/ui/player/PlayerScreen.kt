@@ -223,13 +223,15 @@ fun PlayerScreen(
                     AndroidView(
                         factory = { ctx ->
                             PlayerView(ctx).apply {
-                                useController = false // we draw our own controls
+                                useController = false
                                 keepScreenOn = true
                                 setShowNextButton(false)
                                 setShowPreviousButton(false)
                                 this.player = player
-                                // Hide buffer spinner, we draw our own
+                                // ⚡ Giữ last frame khi seek/buffer — không nháy đen
                                 setKeepContentOnPlayerReset(true)
+                                // ⚡ Tắt animation khi attach player
+                                setUseArtwork(false)
                             }
                         },
                         modifier = Modifier
@@ -255,31 +257,31 @@ fun PlayerScreen(
                                 )
                             },
                     )
-                }
 
-                // ⚡ Loading overlay khi đang buffer — che ExoPlayer, hiện spinner
-                if (state.isBuffering) {
-                    if (state.posterUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = state.posterUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit,
-                        )
+                    // ⚡ Loading overlay — chỉ hiện khi KHÔNG đang play
+                    // (không hiện khi đang play nhưng buffer tạm thời — tránh nhấp nháy)
+                    if (state.isBuffering && !state.isPlaying) {
+                        if (state.posterUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = state.posterUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            color = Color.White,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
 
                 // ---------- Custom Controls Overlay ----------
                 AnimatedVisibility(
