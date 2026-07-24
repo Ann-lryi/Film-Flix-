@@ -225,9 +225,16 @@ class PlayerViewModel @Inject constructor(
             }
             AppLogger.i(LogTags.PLAYER, "onPlaybackStateChanged(state=$stateName)")
             when (state) {
-                Player.STATE_BUFFERING -> _uiState.update { it.copy(isBuffering = true) }
+                Player.STATE_BUFFERING -> {
+                    _uiState.update { it.copy(isBuffering = true) }
+                }
                 Player.STATE_READY -> {
                     _uiState.update { it.copy(isBuffering = false, error = null) }
+                    // ⚡ Auto-play khi READY (nếu chưa playing)
+                    if (!player.isPlaying && player.playWhenReady == false) {
+                        player.playWhenReady = true
+                        AppLogger.i(LogTags.PLAYER, "Auto-play triggered on STATE_READY")
+                    }
                     AppLogger.success(LogTags.PLAYER, "Player READY — video should be playing")
                 }
                 Player.STATE_ENDED -> {
@@ -436,6 +443,10 @@ class PlayerViewModel @Inject constructor(
 
     private fun playWithExoPlayer(episode: EpisodeDto, startPositionMs: Long) {
         AppLogger.i(LogTags.PLAYER_VM, "Using ExoPlayer mode with m3u8: ${episode.linkM3u8}")
+        // ⚡ Set buffering ngay lập tức → UI hiện spinner, không hiện màn hình đen
+        _uiState.update {
+            it.copy(isBuffering = true, isPlaying = false)
+        }
         val m3u8Host = try {
             val uri = android.net.Uri.parse(episode.linkM3u8)
             uri.host ?: ""
@@ -446,10 +457,11 @@ class PlayerViewModel @Inject constructor(
             .setUri(episode.linkM3u8)
             .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
             .build()
+        // ⚡ playWhenReady = false initially → chỉ play khi STATE_READY
+        player.playWhenReady = false
         player.setMediaItem(mediaItem, startPositionMs)
         player.prepare()
-        player.playWhenReady = true
-        AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared + playWhenReady=true (HLS mode)")
+        AppLogger.success(LogTags.PLAYER_VM, "ExoPlayer prepared (waiting for READY)")
     }
 
     /**

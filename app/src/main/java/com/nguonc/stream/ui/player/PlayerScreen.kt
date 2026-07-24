@@ -257,19 +257,28 @@ fun PlayerScreen(
                     )
                 }
 
-                // Poster placeholder while buffering at the very start
-                if (state.isBuffering && state.positionMs <= 0L && state.posterUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = state.posterUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                    )
+                // ⚡ Loading overlay khi đang buffer — che ExoPlayer, hiện spinner
+                if (state.isBuffering) {
+                    if (state.posterUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = state.posterUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.42f))
-                    )
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
                 }
 
                 // ---------- Custom Controls Overlay ----------
